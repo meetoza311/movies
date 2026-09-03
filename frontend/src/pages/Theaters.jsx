@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Armchair, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Armchair, Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { theaterApi } from '../services/theaterApi';
 import { PageHeader, EmptyState, ErrorState, Skeleton } from '../components/common/States';
 import { Button } from '../components/common/Button';
@@ -25,6 +25,7 @@ export default function Theaters() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['theaters'],
@@ -172,6 +173,9 @@ export default function Theaters() {
               </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => setViewing(theater)}>
+                <Eye size={14} /> View
+              </Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(theater)}>
                 <Pencil size={14} /> Edit
               </Button>
@@ -250,6 +254,20 @@ export default function Theaters() {
         </form>
       </Modal>
 
+      <Modal
+        open={Boolean(viewing)}
+        title={viewing ? viewing.name : 'Screen'}
+        onClose={() => setViewing(null)}
+        footerClassName="flex-col"
+        footer={
+          <Button className="w-full min-h-12" size="lg" onClick={() => setViewing(null)}>
+            Close
+          </Button>
+        }
+      >
+        {viewing && <TheaterSeatPreview theater={viewing} />}
+      </Modal>
+
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title="Delete screen?"
@@ -264,6 +282,57 @@ export default function Theaters() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteMutation.mutate(deleteTarget._id)}
       />
+    </div>
+  );
+}
+
+function TheaterSeatPreview({ theater }) {
+  const rows = theater.rows || [];
+  const maxCols = rows.reduce((max, row) => Math.max(max, Number(row.seats) || 0), 1);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-center text-sm text-muted">
+        {theater.rowCount} rows · {theater.totalSeats} seats
+      </p>
+      <div className="px-4 sm:px-8">
+        <div className="cinema-screen py-2 text-center text-[9px] font-bold uppercase tracking-[0.3em] text-muted sm:text-[10px]">
+          Screen this way
+        </div>
+      </div>
+      <div className="space-y-1">
+        {rows.map((row) => (
+          <div key={row.row} className="flex w-full min-w-0 items-center gap-1">
+            <span className="w-3.5 shrink-0 text-center text-[9px] font-bold text-muted sm:w-5 sm:text-xs">
+              {row.row}
+            </span>
+            <div
+              className="grid min-w-0 flex-1 gap-0.5"
+              style={{ gridTemplateColumns: `repeat(${maxCols}, minmax(0, 1fr))` }}
+            >
+              {Array.from({ length: maxCols }, (_, index) => {
+                const column = index + 1;
+                if (column > Number(row.seats)) {
+                  return <span key={`${row.row}-empty-${column}`} className="aspect-square" />;
+                }
+                return (
+                  <span
+                    key={`${row.row}${column}`}
+                    title={`${row.row}${column}`}
+                    className="flex aspect-square items-center justify-center rounded-[4px] border border-line bg-surface text-[9px] font-bold text-ink sm:rounded-md sm:text-[11px]"
+                  >
+                    <span className="sm:hidden">{column}</span>
+                    <span className="hidden sm:inline">
+                      {row.row}
+                      {column}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
