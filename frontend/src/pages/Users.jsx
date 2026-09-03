@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Users as UsersIcon, KeyRound, Pencil, Trash2, Plus } from 'lucide-react';
+import { Users as UsersIcon, KeyRound, Pencil, Trash2, Plus, DatabaseZap } from 'lucide-react';
 import { userApi } from '../services/userApi';
 import { useAuth } from '../context/AuthContext';
 import { PageHeader, EmptyState, ErrorState, Skeleton } from '../components/common/States';
@@ -27,6 +27,7 @@ export default function Users() {
     confirmPassword: '',
   });
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['users'],
@@ -80,6 +81,25 @@ export default function Users() {
       toast.success('User deleted');
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const resetDataMutation = useMutation({
+    mutationFn: () => userApi.resetData(),
+    onSuccess: (res) => {
+      const d = res.data || {};
+      toast.success(
+        res.message ||
+          `Kept ${d.movies?.kept ?? 5} movies, ${d.screens?.kept ?? 5} screens, ${d.shows?.kept ?? 5} shows`
+      );
+      setResetOpen(false);
+      qc.invalidateQueries({ queryKey: ['movies'] });
+      qc.invalidateQueries({ queryKey: ['shows'] });
+      qc.invalidateQueries({ queryKey: ['theaters'] });
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: ['seats'] });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -143,6 +163,13 @@ export default function Users() {
           <>
             <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setMyPasswordOpen(true)}>
               <KeyRound size={16} /> My password
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={() => setResetOpen(true)}
+            >
+              <DatabaseZap size={16} /> Reset data
             </Button>
             <Button className="flex-1 sm:flex-none" onClick={openCreate}>
               <Plus size={16} /> Add user
@@ -401,6 +428,24 @@ export default function Users() {
         }
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteMutation.mutate(deleteTarget._id)}
+      />
+
+      <ConfirmDialog
+        open={resetOpen}
+        title="Reset catalog data?"
+        danger
+        confirmLabel="Reset data"
+        loading={resetDataMutation.isPending}
+        message={
+          'Keeps the 5 newest movies, 5 newest shows, and up to 5 screens.\n\n' +
+          'Movies and screens are separate:\n' +
+          '• Removing a movie deletes only that movie’s shows & bookings — shared screens stay\n' +
+          '• Removing a screen deletes only shows & bookings on that screen — movies stay\n\n' +
+          'Example: 10 movies on 1 screen → reset keeps 5 movies and that same screen.\n\n' +
+          'Users are not affected. This cannot be undone.'
+        }
+        onClose={() => setResetOpen(false)}
+        onConfirm={() => resetDataMutation.mutate()}
       />
     </div>
   );

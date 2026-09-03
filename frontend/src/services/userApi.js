@@ -7,6 +7,7 @@ export const userApi = {
   resetPassword: (id, newPassword) =>
     api.patch(`/users/${id}/password`, { newPassword }).then((r) => r.data),
   remove: (id) => api.delete(`/users/${id}`).then((r) => r.data),
+  resetData: () => api.post('/users/reset-data').then((r) => r.data),
   changeMyPassword: (currentPassword, newPassword) =>
     api
       .post('/auth/change-password', { currentPassword, newPassword })

@@ -5,6 +5,10 @@ const Seat = require('../models/Seat');
 const Booking = require('../models/Booking');
 const { createSeatsForShow, getSeatStats } = require('../services/seatService');
 const { AppError, asyncHandler } = require('../middleware/errorMiddleware');
+const {
+  enforceMaxShows,
+  MAX_SHOWS,
+} = require('../services/movieCleanupService');
 const logger = require('../utils/logger');
 
 function parsePagination(query) {
@@ -170,14 +174,33 @@ const createShow = asyncHandler(async (req, res) => {
   });
 
   await createSeatsForShow(show._id, theater.rows);
+  const limitResult = await enforceMaxShows();
+  if (limitResult.enforced) {
+    logger.info('Oldest shows removed to keep max limit', {
+      max: MAX_SHOWS,
+      showsDeleted: limitResult.showsDeleted,
+    });
+  }
+
+  const kept = await Show.findById(show._id);
+  if (!kept) {
+    throw new AppError(
+      `Show limit is ${MAX_SHOWS}. Your new show could not be kept.`,
+      409,
+      'SHOW_LIMIT'
+    );
+  }
+
   logger.info('Show created', { id: String(show._id), movieId: String(movieId) });
 
   const seats = await getSeatStats(show._id);
 
   res.status(201).json({
     success: true,
-    message: 'Show created successfully',
-    data: { ...withResolvedPrices(show.toObject()), seats },
+    message: limitResult.enforced
+      ? `Show created. Oldest show(s) removed to keep max ${MAX_SHOWS}.`
+      : 'Show created successfully',
+    data: { ...withResolvedPrices(show.toObject()), seats, maxShows: MAX_SHOWS },
   });
 });
 

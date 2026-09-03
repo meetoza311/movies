@@ -6,6 +6,7 @@ const {
   updateUser,
   resetPassword,
   deleteUser,
+  resetData,
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', listUsers);
+router.post('/reset-data', resetData);
 
 router.post(
   '/',

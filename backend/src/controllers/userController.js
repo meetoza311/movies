@@ -1,6 +1,12 @@
 const Admin = require('../models/Admin');
 const env = require('../config/env');
 const { AppError, asyncHandler } = require('../middleware/errorMiddleware');
+const {
+  resetCatalogData,
+  MAX_MOVIES,
+  MAX_SHOWS,
+  MAX_THEATERS,
+} = require('../services/movieCleanupService');
 const logger = require('../utils/logger');
 
 function getSuperAdminEmail() {
@@ -171,10 +177,25 @@ const deleteUser = asyncHandler(async (req, res) => {
   });
 });
 
+const resetData = asyncHandler(async (req, res) => {
+  const summary = await resetCatalogData();
+  logger.info('Catalog reset requested', {
+    by: req.admin?.email,
+    summary,
+  });
+
+  res.json({
+    success: true,
+    message: `Data trimmed to latest ${MAX_MOVIES} movies, ${MAX_THEATERS} screens, and ${MAX_SHOWS} shows`,
+    data: summary,
+  });
+});
+
 module.exports = {
   listUsers,
   createUser,
   updateUser,
   resetPassword,
   deleteUser,
+  resetData,
 };

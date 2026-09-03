@@ -2,6 +2,10 @@ const Theater = require('../models/Theater');
 const Show = require('../models/Show');
 const { buildTheaterLayout } = require('../utils/generateSeats');
 const { AppError, asyncHandler } = require('../middleware/errorMiddleware');
+const {
+  enforceMaxTheaters,
+  MAX_THEATERS,
+} = require('../services/movieCleanupService');
 const logger = require('../utils/logger');
 
 function parseLayout(body) {
@@ -48,11 +52,30 @@ const createTheater = asyncHandler(async (req, res) => {
     totalSeats: layout.totalSeats,
   });
 
+  const limitResult = await enforceMaxTheaters();
+  if (limitResult.enforced) {
+    logger.info('Oldest screens removed to keep max limit', {
+      max: MAX_THEATERS,
+      deleted: limitResult.deletedLabels,
+    });
+  }
+
+  const kept = await Theater.findById(theater._id);
+  if (!kept) {
+    throw new AppError(
+      `Screen limit is ${MAX_THEATERS}. Your new screen could not be kept.`,
+      409,
+      'THEATER_LIMIT'
+    );
+  }
+
   logger.info('Theater created', { id: String(theater._id), name: theater.name });
 
   res.status(201).json({
     success: true,
-    message: 'Theater created successfully',
+    message: limitResult.enforced
+      ? `Screen created. Oldest screen(s) removed to keep max ${MAX_THEATERS}: ${(limitResult.deletedLabels || []).join(', ')}`
+      : 'Theater created successfully',
     data: theater,
   });
 });
