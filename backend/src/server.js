@@ -17,12 +17,18 @@ async function start() {
     }
   }
 
-  await connectDB();
-
-  // Bind 0.0.0.0 so Render can reach the service
-  app.listen(env.port, '0.0.0.0', () => {
+  // Start HTTP ASAP so Render health checks / wake pings succeed while Mongo connects
+  const server = app.listen(env.port, '0.0.0.0', () => {
     logger.info(`Savan Sentosa API listening on port ${env.port}`);
   });
+
+  try {
+    await connectDB();
+  } catch (err) {
+    logger.error('MongoDB connection failed', { message: err.message });
+    server.close();
+    throw err;
+  }
 }
 
 start().catch((err) => {

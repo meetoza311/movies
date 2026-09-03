@@ -1,7 +1,8 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const mongoose = require('mongoose');
 const env = require('./config/env');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
@@ -31,10 +32,24 @@ if (env.nodeEnv !== 'test') {
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'Savan Sentosa API is running',
-    data: { env: env.nodeEnv },
+  const dbOk = mongoose.connection.readyState === 1;
+  res.status(dbOk ? 200 : 503).json({
+    success: dbOk,
+    message: dbOk
+      ? 'Savan Sentosa API is running'
+      : 'API is starting — connecting to database',
+    data: { env: env.nodeEnv, db: dbOk ? 'connected' : 'connecting' },
+  });
+});
+
+// While Mongo connects after cold start, return 503 so the frontend can retry
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health') return next();
+  if (mongoose.connection.readyState === 1) return next();
+  return res.status(503).json({
+    success: false,
+    message: 'Server is waking up. Please retry in a moment.',
+    errorCode: 'DB_STARTING',
   });
 });
 

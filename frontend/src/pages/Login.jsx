@@ -19,12 +19,13 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
+    const toastId = toast.loading('Connecting to server…');
     try {
       await login(email, password);
-      toast.success('Welcome to Savan Sentosa');
+      toast.success('Welcome to Savan Sentosa', { id: toastId });
       navigate('/');
     } catch (err) {
-      toast.error(err.message || 'Login failed');
+      toast.error(err.message || 'Login failed', { id: toastId });
     } finally {
       setSubmitting(false);
     }
@@ -72,6 +73,10 @@ export default function Login() {
           <Button type="submit" className="w-full" size="lg" loading={submitting}>
             Sign in
           </Button>
+          <p className="text-center text-[11px] leading-relaxed text-muted">
+            First open after idle can take up to a minute (free Render hosting waking up).
+            After that, it stays fast while you use the app.
+          </p>
         </form>
       </div>
     </div>

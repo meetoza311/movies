@@ -20,9 +20,13 @@ import Users from './pages/Users';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 2,
       refetchOnWindowFocus: false,
-      staleTime: 15_000,
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });
