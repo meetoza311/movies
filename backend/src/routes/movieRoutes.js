@@ -23,7 +23,6 @@ router.post(
   '/',
   [
     body('title').trim().notEmpty().withMessage('Movie name is required'),
-    body('price').isFloat({ min: 0 }).withMessage('Price must be >= 0'),
     body('description').optional().isString(),
     body('posterImage').optional().isString(),
   ],
@@ -35,7 +34,6 @@ router.put(
   '/:id',
   [
     body('title').optional().trim().notEmpty().withMessage('Movie name cannot be empty'),
-    body('price').optional().isFloat({ min: 0 }),
     body('description').optional().isString(),
     body('posterImage').optional().isString(),
   ],

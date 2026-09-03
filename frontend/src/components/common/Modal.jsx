@@ -1,20 +1,29 @@
 import { Button } from './Button';
+import { cn } from '../../utils/format';
 
-export function Modal({ open, title, children, onClose, footer }) {
+export function Modal({ open, title, children, onClose, footer, footerClassName }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:items-center sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-ink/50 backdrop-blur-[2px]"
         aria-label="Close dialog"
         onClick={onClose}
       />
-      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-surface shadow-xl sm:rounded-2xl">
+      <div className="relative z-10 flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-surface shadow-xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-5 sm:py-4">
-          <h3 className="font-display text-lg font-bold text-ink sm:text-xl">{title}</h3>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <h3 className="min-w-0 font-display text-lg font-bold leading-tight text-ink sm:text-xl">
+            {title}
+          </h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ✕
           </Button>
         </div>
@@ -22,7 +31,12 @@ export function Modal({ open, title, children, onClose, footer }) {
           {children}
         </div>
         {footer && (
-          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-line px-4 py-3 safe-bottom sm:px-5">
+          <div
+            className={cn(
+              'flex w-full shrink-0 flex-wrap gap-2 border-t border-line px-4 py-4 sm:justify-end sm:px-5',
+              footerClassName
+            )}
+          >
             {footer}
           </div>
         )}
@@ -48,12 +62,12 @@ export function ConfirmDialog({
       onClose={onClose}
       footer={
         <>
-          <Button variant="outline" className="flex-1 sm:flex-none" onClick={onClose} disabled={loading}>
+          <Button variant="outline" className="min-h-12 flex-1 sm:min-h-11 sm:flex-none" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button
             variant={danger ? 'danger' : 'primary'}
-            className="flex-1 sm:flex-none"
+            className="min-h-12 flex-1 sm:min-h-11 sm:flex-none"
             loading={loading}
             onClick={onConfirm}
           >

@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
 const Seat = require('../models/Seat');
-const { generateSeats } = require('../utils/generateSeats');
+const { generateSeats, generateSeatsFromLayout } = require('../utils/generateSeats');
 const { AppError } = require('../middleware/errorMiddleware');
 
-async function createSeatsForShow(showId, totalSeats, session = null) {
-  const seatDefs = generateSeats(totalSeats);
+async function createSeatsForShow(showId, totalSeatsOrLayout, session = null) {
+  const seatDefs = Array.isArray(totalSeatsOrLayout)
+    ? generateSeatsFromLayout(totalSeatsOrLayout)
+    : generateSeats(totalSeatsOrLayout);
   const docs = seatDefs.map((s) => ({
     showId,
     seatNumber: s.seatNumber,

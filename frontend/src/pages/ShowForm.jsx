@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { showApi } from '../services/showApi';
 import { movieApi } from '../services/movieApi';
+import { theaterApi } from '../services/theaterApi';
 import { PageHeader, Skeleton, ErrorState } from '../components/common/States';
 import { Button } from '../components/common/Button';
 import { Input, Select } from '../components/common/Input';
 
 const empty = {
   movieId: '',
+  theaterId: '',
   showDate: '',
   startTime: '19:30',
   endTime: '22:00',
-  totalSeats: 100,
   ownerPrice: 50,
   guestPrice: 80,
   status: 'scheduled',
@@ -35,6 +36,11 @@ export default function ShowForm() {
     queryFn: () => movieApi.list({ limit: 100 }),
   });
 
+  const theatersQuery = useQuery({
+    queryKey: ['theaters'],
+    queryFn: () => theaterApi.list(),
+  });
+
   const showQuery = useQuery({
     queryKey: ['show', id],
     queryFn: () => showApi.get(id),
@@ -46,6 +52,7 @@ export default function ShowForm() {
       const s = showQuery.data.data;
       setForm({
         movieId: s.movieId?._id || s.movieId,
+        theaterId: s.theaterId?._id || s.theaterId || '',
         showDate: s.showDate ? String(s.showDate).slice(0, 10) : '',
         startTime: s.startTime,
         endTime: s.endTime,
@@ -83,7 +90,7 @@ export default function ShowForm() {
       guestPrice: Number(form.guestPrice),
     };
     if (!isEdit) {
-      payload.totalSeats = Number(form.totalSeats);
+      payload.theaterId = form.theaterId;
     }
     mutation.mutate(payload);
   }
@@ -95,7 +102,7 @@ export default function ShowForm() {
     <div className="mx-auto min-w-0 max-w-3xl">
       <PageHeader
         title={isEdit ? 'Edit Show' : 'Add Show'}
-        subtitle="Set timing, capacity, and Guest / Owner seat prices"
+        subtitle="Pick a screen for the seat map, then set timing and Guest / Owner prices"
       />
 
       <form
@@ -116,6 +123,43 @@ export default function ShowForm() {
             </option>
           ))}
         </Select>
+
+        {!isEdit ? (
+          <div>
+            <Select
+              label="Theater / screen"
+              value={form.theaterId}
+              onChange={(e) => update('theaterId', e.target.value)}
+              required
+            >
+              <option value="">Select screen</option>
+              {(theatersQuery.data?.data || []).map((t) => (
+                <option key={t._id} value={t._id}>
+                  {t.name} — {t.rowCount} rows · {t.totalSeats} seats
+                </option>
+              ))}
+            </Select>
+            {(theatersQuery.data?.data || []).length === 0 && (
+              <p className="mt-2 text-xs text-muted">
+                No screens yet.{' '}
+                <Link to="/theaters" className="font-bold text-teal">
+                  Create a theater screen
+                </Link>{' '}
+                first.
+              </p>
+            )}
+            {form.theaterId && (
+              <TheaterPreview
+                theater={(theatersQuery.data?.data || []).find((t) => t._id === form.theaterId)}
+              />
+            )}
+          </div>
+        ) : (
+          <p className="rounded-xl bg-paper px-3 py-2 text-xs text-muted">
+            Screen and seats are locked after the show is created
+            {form.totalSeats ? ` (${form.totalSeats} seats)` : ''}.
+          </p>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
@@ -139,16 +183,6 @@ export default function ShowForm() {
             onChange={(e) => update('endTime', e.target.value)}
             required
           />
-          {!isEdit && (
-            <Input
-              label="Total seats"
-              type="number"
-              min="1"
-              value={form.totalSeats}
-              onChange={(e) => update('totalSeats', e.target.value)}
-              required
-            />
-          )}
           <Input
             label="Owner price (₹)"
             type="number"
@@ -180,12 +214,6 @@ export default function ShowForm() {
           Default prices: Owner ₹50 · Guest ₹80. Any seat can be either type — no seat limits.
         </p>
 
-        {isEdit && (
-          <p className="text-xs text-muted">
-            Total seats cannot be changed after creation ({form.totalSeats} seats).
-          </p>
-        )}
-
         <div className="flex flex-wrap gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>
             Cancel
@@ -196,5 +224,16 @@ export default function ShowForm() {
         </div>
       </form>
     </div>
+  );
+}
+
+function TheaterPreview({ theater }) {
+  if (!theater) return null;
+  return (
+    <p className="mt-2 rounded-xl bg-paper px-3 py-2 text-xs text-muted">
+      This show will use <strong>{theater.name}</strong> —{' '}
+      {(theater.rows || []).map((r) => `${r.row}:${r.seats}`).join(', ')} ({theater.totalSeats}{' '}
+      seats).
+    </p>
   );
 }

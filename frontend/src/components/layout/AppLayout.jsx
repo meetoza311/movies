@@ -11,6 +11,7 @@ import {
   Plus,
   Users,
   ScanLine,
+  Armchair,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
@@ -24,7 +25,10 @@ const nav = [
   { to: '/verify', label: 'Scan', full: 'Verify / Scanner', icon: ScanLine },
 ];
 
-const sideOnly = [{ to: '/users', label: 'Users', full: 'Users', icon: Users }];
+const sideOnly = [
+  { to: '/theaters', label: 'Screens', full: 'Theaters / Screens', icon: Armchair },
+  { to: '/users', label: 'Users', full: 'Users', icon: Users },
+];
 
 export default function AppLayout() {
   const { admin, logout } = useAuth();

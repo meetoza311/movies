@@ -6,7 +6,9 @@ const Movie = require('../models/Movie');
 const Show = require('../models/Show');
 const Seat = require('../models/Seat');
 const Booking = require('../models/Booking');
+const Theater = require('../models/Theater');
 const { createSeatsForShow } = require('../services/seatService');
+const { buildTheaterLayout } = require('../utils/generateSeats');
 const env = require('../config/env');
 const logger = require('../utils/logger');
 
@@ -122,6 +124,7 @@ async function seedDemo() {
     Seat.deleteMany({}),
     Show.deleteMany({}),
     Movie.deleteMany({}),
+    Theater.deleteMany({}),
   ]);
 
   const email = env.adminEmail.toLowerCase().trim();
@@ -142,6 +145,13 @@ async function seedDemo() {
   const movies = await Movie.insertMany(sampleMovies);
   logger.info(`Movies created: ${movies.length}`);
 
+  const screenLayout = buildTheaterLayout(6, [10, 10, 10, 10, 10, 10]);
+  const theater = await Theater.create({
+    name: 'Screen 1',
+    ...screenLayout,
+  });
+  logger.info(`Theater created: ${theater.name} (${theater.totalSeats} seats)`);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -154,16 +164,17 @@ async function seedDemo() {
       for (const t of showTimes.slice(0, dayOffset === 0 ? 3 : 2)) {
         const show = await Show.create({
           movieId: movie._id,
+          theaterId: theater._id,
           showDate,
           startTime: t.start,
           endTime: t.end,
-          totalSeats: 60,
+          totalSeats: theater.totalSeats,
           guestPrice: movie.price || 80,
           ownerPrice: 50,
           seatPrice: movie.price || 80,
           status: 'scheduled',
         });
-        await createSeatsForShow(show._id, 60);
+        await createSeatsForShow(show._id, theater.rows);
         showCount += 1;
       }
     }

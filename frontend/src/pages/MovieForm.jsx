@@ -12,7 +12,6 @@ const empty = {
   title: '',
   description: '',
   posterImage: '',
-  price: 200,
 };
 
 export default function MovieForm() {
@@ -35,7 +34,6 @@ export default function MovieForm() {
         title: m.title || '',
         description: m.description || '',
         posterImage: m.posterImage || '',
-        price: m.price ?? 0,
       });
     }
   }, [data]);
@@ -71,7 +69,6 @@ export default function MovieForm() {
       title: form.title.trim(),
       description: form.description,
       posterImage: form.posterImage,
-      price: Number(form.price),
     });
   }
 
@@ -82,7 +79,7 @@ export default function MovieForm() {
     <div className="mx-auto min-w-0 max-w-2xl">
       <PageHeader
         title={isEdit ? 'Edit Movie' : 'Add Movie'}
-        subtitle="Name, poster, description, and price (max 10 movies — oldest auto-removed)"
+        subtitle="Name, poster, and description (max 10 movies — oldest auto-removed)"
       />
 
       <form
@@ -111,15 +108,6 @@ export default function MovieForm() {
           value={form.description}
           onChange={(e) => update('description', e.target.value)}
           placeholder="Short description of the movie"
-        />
-
-        <Input
-          label="Seat price (₹)"
-          type="number"
-          min="0"
-          value={form.price}
-          onChange={(e) => update('price', e.target.value)}
-          required
         />
 
         <div className="flex flex-wrap gap-2 pt-2">

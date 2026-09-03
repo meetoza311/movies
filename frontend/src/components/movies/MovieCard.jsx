@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../common/Button';
-import { formatCurrency } from '../../utils/format';
 
 export default function MovieCard({ movie, onEdit, onDelete }) {
   return (
@@ -35,9 +34,6 @@ export default function MovieCard({ movie, onEdit, onDelete }) {
             </p>
           ) : null}
         </div>
-        <p className="text-base font-extrabold text-teal sm:text-xl">
-          {formatCurrency(movie.price)}
-        </p>
         <div className="flex items-center gap-1.5">
           <Link to={`/movies/${movie._id}`} className="min-w-0 flex-1">
             <Button size="sm" variant="outline" className="w-full px-2">

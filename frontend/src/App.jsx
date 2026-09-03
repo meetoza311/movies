@@ -16,6 +16,7 @@ import Bookings from './pages/Bookings';
 import BookingCreate from './pages/BookingCreate';
 import BookingDetails from './pages/BookingDetails';
 import Users from './pages/Users';
+import Theaters from './pages/Theaters';
 import Verify from './pages/Verify';
 
 const queryClient = new QueryClient({
@@ -54,6 +55,7 @@ export default function App() {
                 <Route path="bookings/new" element={<BookingCreate />} />
                 <Route path="bookings/:id" element={<BookingDetails />} />
                 <Route path="verify" element={<Verify />} />
+                <Route path="theaters" element={<Theaters />} />
                 <Route path="users" element={<Users />} />
               </Route>
             </Route>

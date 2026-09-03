@@ -21,6 +21,7 @@ export default function ShowCard({ show, onEdit, onDelete }) {
           </p>
           <p className="mt-1 text-xs text-muted sm:text-sm">
             {formatDate(show.showDate)} · {formatTime(show.startTime)} – {formatTime(show.endTime)}
+            {show.theaterId?.name ? ` · ${show.theaterId.name}` : ''}
           </p>
         </div>
         <Badge tone={show.status}>{showStatusLabel(show.status)}</Badge>

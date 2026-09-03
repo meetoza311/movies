@@ -14,6 +14,7 @@ let Movie;
 let Show;
 let Seat;
 let Booking;
+let Theater;
 let token;
 
 beforeAll(async () => {
@@ -27,6 +28,7 @@ beforeAll(async () => {
   Show = require('../src/models/Show');
   Seat = require('../src/models/Seat');
   Booking = require('../src/models/Booking');
+  Theater = require('../src/models/Theater');
 
   const passwordHash = await bcrypt.hash('Admin@123', 12);
   await Admin.create({
@@ -54,6 +56,7 @@ beforeEach(async () => {
     Show.deleteMany({}),
     Seat.deleteMany({}),
     Booking.deleteMany({}),
+    Theater.deleteMany({}),
   ]);
 });
 
@@ -69,26 +72,43 @@ async function createMovie(overrides = {}) {
       language: 'Hindi',
       genre: 'Action',
       releaseDate: '2026-09-10',
-      price: 200,
       status: 'now_showing',
       ...overrides,
     });
   return res;
 }
 
+async function createTheater(overrides = {}) {
+  const res = await request(app)
+    .post('/api/theaters')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      name: overrides.name || `Screen ${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      rowCount: overrides.rowCount ?? 4,
+      rowSeats: overrides.rowSeats || [10, 10, 10, 10],
+    });
+  return res;
+}
+
 async function createShow(movieId, overrides = {}) {
+  let theaterId = overrides.theaterId;
+  if (!theaterId) {
+    const theater = await createTheater();
+    theaterId = theater.body.data._id;
+  }
+  const { theaterId: _ignored, totalSeats: _seats, ...rest } = overrides;
   const res = await request(app)
     .post('/api/shows')
     .set('Authorization', `Bearer ${token}`)
     .send({
       movieId,
+      theaterId,
       showDate: '2026-09-10',
       startTime: '19:30',
       endTime: '21:45',
-      totalSeats: 20,
       seatPrice: 200,
       status: 'scheduled',
-      ...overrides,
+      ...rest,
     });
   return res;
 }
@@ -133,10 +153,23 @@ describe('Movies', () => {
   });
 });
 
+describe('Theaters', () => {
+  test('creates layout with default 10 seats per row', async () => {
+    const res = await request(app)
+      .post('/api/theaters')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Main Hall', rowCount: 3 });
+    expect(res.status).toBe(201);
+    expect(res.body.data.totalSeats).toBe(30);
+    expect(res.body.data.rows.map((r) => r.seats)).toEqual([10, 10, 10]);
+  });
+});
+
 describe('Shows & seats', () => {
   test('creates show and generates seats', async () => {
     const movie = await createMovie();
-    const show = await createShow(movie.body.data._id, { totalSeats: 24 });
+    const theater = await createTheater({ rowCount: 3, rowSeats: [8, 8, 8] });
+    const show = await createShow(movie.body.data._id, { theaterId: theater.body.data._id });
     expect(show.status).toBe(201);
 
     const seats = await request(app)
@@ -333,7 +366,7 @@ describe('Movie limit', () => {
       showId: show._id,
       customerName: 'Old',
       mobileNumber: '9876543210',
-      seats: [{ seatNumber: 'A1' }],
+      seats: [{ seatNumber: 'A1', category: 'GUEST', price: 100 }],
       seatPrice: 100,
       numberOfSeats: 1,
       totalAmount: 100,
@@ -346,7 +379,6 @@ describe('Movie limit', () => {
       .send({
         title: 'Brand New Movie',
         description: 'newest',
-        price: 250,
       });
 
     expect(created.status).toBe(201);

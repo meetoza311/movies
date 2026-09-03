@@ -67,7 +67,6 @@ const createMovie = asyncHandler(async (req, res) => {
     title: req.body.title,
     description: req.body.description || '',
     posterImage: req.body.posterImage || '',
-    price: Number(req.body.price),
     status: 'now_showing',
   });
 
@@ -119,7 +118,6 @@ const updateMovie = asyncHandler(async (req, res) => {
   if (req.body.title !== undefined) allowed.title = req.body.title;
   if (req.body.description !== undefined) allowed.description = req.body.description;
   if (req.body.posterImage !== undefined) allowed.posterImage = req.body.posterImage;
-  if (req.body.price !== undefined) allowed.price = Number(req.body.price);
 
   const movie = await Movie.findByIdAndUpdate(req.params.id, allowed, {
     returnDocument: 'after',

@@ -13,6 +13,7 @@ const seatRoutes = require('./routes/seatRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const userRoutes = require('./routes/userRoutes');
+const theaterRoutes = require('./routes/theaterRoutes');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api', (req, res, next) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/theaters', theaterRoutes);
 app.use('/api/movies', movieRoutes);
 app.use('/api/shows', showRoutes);
 app.use('/api/shows', seatRoutes);

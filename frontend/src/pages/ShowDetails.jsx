@@ -87,7 +87,9 @@ export default function ShowDetails() {
     <div>
       <PageHeader
         title={typeof movie === 'object' ? movie.title : 'Show details'}
-        subtitle={`${formatDate(show.showDate)} · ${formatTime(show.startTime)} – ${formatTime(show.endTime)}`}
+        subtitle={`${formatDate(show.showDate)} · ${formatTime(show.startTime)} – ${formatTime(show.endTime)}${
+          show.theaterId?.name ? ` · ${show.theaterId.name}` : ''
+        }`}
         actions={
           <>
             <Link to={`/verify`} className="min-w-0 flex-1 sm:flex-none">

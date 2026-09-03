@@ -68,10 +68,6 @@ export default function MovieDetails() {
             <p className="text-sm leading-relaxed text-ink/80">
               {movie.description || 'No description.'}
             </p>
-            <div className="mt-4 rounded-xl bg-paper px-4 py-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Seat price</p>
-              <p className="text-2xl font-extrabold text-teal">{formatCurrency(movie.price)}</p>
-            </div>
           </div>
 
           <div>

@@ -1,5 +1,6 @@
 const Show = require('../models/Show');
 const Movie = require('../models/Movie');
+const Theater = require('../models/Theater');
 const Seat = require('../models/Seat');
 const Booking = require('../models/Booking');
 const { createSeatsForShow, getSeatStats } = require('../services/seatService');
@@ -65,7 +66,8 @@ const listShows = asyncHandler(async (req, res) => {
 
   const [shows, total] = await Promise.all([
     Show.find(filter)
-      .populate('movieId', 'title posterImage language genre durationMinutes price')
+      .populate('movieId', 'title posterImage language genre durationMinutes')
+      .populate('theaterId', 'name rowCount totalSeats rows')
       .sort({ showDate: 1, startTime: 1 })
       .skip(skip)
       .limit(limit)
@@ -95,7 +97,8 @@ const listShows = asyncHandler(async (req, res) => {
 
 const getShow = asyncHandler(async (req, res) => {
   const show = await Show.findById(req.params.id)
-    .populate('movieId', 'title posterImage language genre durationMinutes price status')
+    .populate('movieId', 'title posterImage language genre durationMinutes status')
+    .populate('theaterId', 'name rowCount totalSeats rows')
     .lean();
   if (!show) throw new AppError('Show not found', 404, 'NOT_FOUND');
 
@@ -114,10 +117,10 @@ const getShow = asyncHandler(async (req, res) => {
 const createShow = asyncHandler(async (req, res) => {
   const {
     movieId,
+    theaterId,
     showDate,
     startTime,
     endTime,
-    totalSeats,
     seatPrice,
     guestPrice,
     ownerPrice,
@@ -127,10 +130,9 @@ const createShow = asyncHandler(async (req, res) => {
   const movie = await Movie.findById(movieId);
   if (!movie) throw new AppError('Movie not found', 404, 'NOT_FOUND');
 
-  const seatsCount = parseInt(totalSeats, 10);
-  if (!Number.isInteger(seatsCount) || seatsCount <= 0) {
-    throw new AppError('Total seats must be greater than 0', 400, 'VALIDATION_ERROR');
-  }
+  const theater = await Theater.findById(theaterId);
+  if (!theater) throw new AppError('Select a theater screen', 400, 'VALIDATION_ERROR');
+  const seatsCount = theater.totalSeats;
 
   const resolvedGuest = parsePrice(
     guestPrice !== undefined ? guestPrice : seatPrice,
@@ -156,6 +158,7 @@ const createShow = asyncHandler(async (req, res) => {
 
   const show = await Show.create({
     movieId,
+    theaterId: theater._id,
     showDate: date,
     startTime: String(startTime).trim(),
     endTime: String(endTime).trim(),
@@ -166,7 +169,7 @@ const createShow = asyncHandler(async (req, res) => {
     status: status || 'scheduled',
   });
 
-  await createSeatsForShow(show._id, seatsCount);
+  await createSeatsForShow(show._id, theater.rows);
   logger.info('Show created', { id: String(show._id), movieId: String(movieId) });
 
   const seats = await getSeatStats(show._id);

@@ -25,7 +25,7 @@ router.post(
     body('showDate').notEmpty().withMessage('showDate is required'),
     body('startTime').trim().notEmpty().withMessage('startTime is required'),
     body('endTime').trim().notEmpty().withMessage('endTime is required'),
-    body('totalSeats').isInt({ min: 1 }).withMessage('totalSeats must be > 0'),
+    body('theaterId').notEmpty().withMessage('Select a theater screen'),
     body('seatPrice').optional().isFloat({ min: 0 }),
     body('guestPrice').optional().isFloat({ min: 0 }),
     body('ownerPrice').optional().isFloat({ min: 0 }),
