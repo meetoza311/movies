@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Plus,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
@@ -19,6 +20,7 @@ const nav = [
   { to: '/movies', label: 'Movies', icon: Clapperboard },
   { to: '/shows', label: 'Shows', icon: CalendarDays },
   { to: '/bookings', label: 'Bookings', icon: Ticket },
+  { to: '/users', label: 'Users', icon: Users },
 ];
 
 export default function AppLayout() {
@@ -161,7 +163,7 @@ export default function AppLayout() {
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-surface/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
           {nav.map((item) => (
             <NavLink
               key={item.to}

@@ -15,6 +15,7 @@ import ShowForm from './pages/ShowForm';
 import Bookings from './pages/Bookings';
 import BookingCreate from './pages/BookingCreate';
 import BookingDetails from './pages/BookingDetails';
+import Users from './pages/Users';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="bookings" element={<Bookings />} />
                 <Route path="bookings/new" element={<BookingCreate />} />
                 <Route path="bookings/:id" element={<BookingDetails />} />
+                <Route path="users" element={<Users />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
