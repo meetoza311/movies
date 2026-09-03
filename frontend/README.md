@@ -15,7 +15,7 @@ App runs at `http://localhost:5173`.
 ## Env
 
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=https://movies-pnmw.onrender.com/api
 ```
 
 ## Scripts

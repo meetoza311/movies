@@ -86,10 +86,10 @@ npm run dev           # http://localhost:5173
 `.env`:
 
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=https://movies-pnmw.onrender.com/api
 ```
 
-Login with the admin email/password from backend `.env`.
+Login with the admin email/password from backend `.env` / Render.
 
 ---
 
@@ -145,7 +145,7 @@ Already-booked seats → **409** `SEAT_ALREADY_BOOKED`.
 
 **Frontend (Vercel)**  
 - Root: `frontend` · Build: `npm run build` · Output: `dist`  
-- Env: `VITE_API_URL=https://your-api-domain/api`  
+- Env: `VITE_API_URL=https://movies-pnmw.onrender.com/api`  
 
 CORS uses `FRONTEND_URL` only (not `*`).
 
