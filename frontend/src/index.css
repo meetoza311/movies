@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", system-ui, sans-serif;
+
+  --color-ink: #1a1040;
+  --color-ink-soft: #2d1b69;
+  --color-teal: #e11d48;
+  --color-teal-dark: #be123c;
+  --color-gold: #f59e0b;
+  --color-gold-soft: #fef3c7;
+  --color-paper: #fff7ed;
+  --color-surface: #ffffff;
+  --color-line: #fed7aa;
+  --color-muted: #78716c;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+  --color-warn: #d97706;
+  --color-sky: #0ea5e9;
+  --color-violet: #7c3aed;
+  --color-lime: #65a30d;
+  --color-pink: #db2777;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-paper);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 420px at 0% -5%, rgba(225, 29, 72, 0.12), transparent 55%),
+      radial-gradient(800px 380px at 100% 0%, rgba(245, 158, 11, 0.16), transparent 50%),
+      radial-gradient(700px 360px at 80% 100%, rgba(14, 165, 233, 0.1), transparent 45%),
+      var(--color-paper);
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-sans);
+  }
+
+  .cinema-screen {
+    background: linear-gradient(180deg, #fda4af 0%, #fecdd3 45%, #fff1f2 100%);
+    border-radius: 999px 999px 8px 8px;
+    box-shadow: 0 8px 24px rgba(225, 29, 72, 0.12);
+  }
+
+  .card-color-1 { background: linear-gradient(135deg, #fff1f2, #ffffff); border-color: #fda4af; }
+  .card-color-2 { background: linear-gradient(135deg, #fffbeb, #ffffff); border-color: #fcd34d; }
+  .card-color-3 { background: linear-gradient(135deg, #f0f9ff, #ffffff); border-color: #7dd3fc; }
+  .card-color-4 { background: linear-gradient(135deg, #f5f3ff, #ffffff); border-color: #c4b5fd; }
+  .card-color-5 { background: linear-gradient(135deg, #f7fee7, #ffffff); border-color: #bef264; }
+  .card-color-6 { background: linear-gradient(135deg, #fdf2f8, #ffffff); border-color: #f9a8d4; }
+  .card-color-7 { background: linear-gradient(135deg, #ecfeff, #ffffff); border-color: #67e8f9; }
+  .card-color-8 { background: linear-gradient(135deg, #fff7ed, #ffffff); border-color: #fdba74; }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .ticket-print,
+  .ticket-print * {
+    visibility: visible;
+  }
+  .ticket-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

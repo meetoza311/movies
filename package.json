@@ -1,0 +1,14 @@
+{
+  "name": "cinedesk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CineDesk — Cinema / Movie Management System",
+  "scripts": {
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "seed": "npm run seed --prefix backend",
+    "seed:admin": "npm run seed:admin --prefix backend",
+    "test": "npm test --prefix backend",
+    "build:frontend": "npm run build --prefix frontend"
+  }
+}
