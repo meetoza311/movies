@@ -181,23 +181,22 @@ const sendBookingEmailHandler = asyncHandler(async (req, res) => {
     throw new AppError('Cannot email a cancelled booking', 400, 'BOOKING_CANCELLED');
   }
 
+  const toEmail = String(booking.customerEmail || '')
+    .trim()
+    .toLowerCase();
+  if (!toEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+    throw new AppError(
+      'This booking has no customer email. Edit the booking and add an email first.',
+      400,
+      'VALIDATION_ERROR'
+    );
+  }
+
   booking = await ensureScanToken(booking);
   await booking.populate([
     { path: 'movieId', select: 'title posterImage language genre durationMinutes' },
     { path: 'showId', select: POPULATE_SHOW },
   ]);
-
-  const toEmail = String(req.body.email || booking.customerEmail || '')
-    .trim()
-    .toLowerCase();
-  if (!toEmail) {
-    throw new AppError('Customer email is required to send the ticket', 400, 'VALIDATION_ERROR');
-  }
-
-  if (!booking.customerEmail || booking.customerEmail !== toEmail) {
-    booking.customerEmail = toEmail;
-    await booking.save();
-  }
 
   const result = await sendBookingTicketEmail(booking.toObject(), toEmail);
 

@@ -40,6 +40,8 @@ router.post(
   checkInTicketHandler
 );
 
+router.post('/:id/send-email', sendBookingEmailHandler);
+
 router.get('/:id', getBooking);
 
 router.post(
@@ -60,18 +62,11 @@ router.put(
   [
     body('customerName').optional().trim().isLength({ min: 2, max: 100 }),
     body('mobileNumber').optional().trim().matches(/^[6-9]\d{9}$/),
-    body('customerEmail').optional().trim().isEmail(),
+    body('customerEmail').optional().trim().isEmail().withMessage('Valid customer email is required'),
     body('seats').optional().isArray({ min: 1 }),
   ],
   validate,
   updateBookingHandler
-);
-
-router.post(
-  '/:id/send-email',
-  [body('email').optional().trim().isEmail().withMessage('Valid email is required')],
-  validate,
-  sendBookingEmailHandler
 );
 
 router.patch('/:id/cancel', cancelBookingHandler);

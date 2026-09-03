@@ -416,7 +416,14 @@ export default function BookingCreate() {
               className="flex-1 sm:flex-none"
               loading={mutation.isPending}
               disabled={mutation.isPending}
-              onClick={() => mutation.mutate()}
+              onClick={() => {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+                  toast.error('Email is required to confirm booking');
+                  setStep(4);
+                  return;
+                }
+                mutation.mutate();
+              }}
             >
               Confirm Booking
             </Button>

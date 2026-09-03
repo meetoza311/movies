@@ -251,6 +251,7 @@ export default function BookingDetails() {
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
                     placeholder="customer@email.com"
+                    required
                   />
                 </div>
               </div>
@@ -282,14 +283,18 @@ export default function BookingDetails() {
                 </Button>
                 <Button
                   loading={updateMutation.isPending}
-                  onClick={() =>
+                  onClick={() => {
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+                      toast.error('Valid customer email is required');
+                      return;
+                    }
                     updateMutation.mutate({
                       customerName,
                       mobileNumber,
                       customerEmail,
                       seats: selectedSeats,
-                    })
-                  }
+                    });
+                  }}
                 >
                   Save changes
                 </Button>

@@ -13,7 +13,6 @@ import { formatCurrency, formatDate, formatTime } from '../../utils/format';
 import { bookingApi } from '../../services/bookingApi';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { Input } from '../common/Input';
 
 /** jsPDF Helvetica cannot draw ₹ / × / · — use ASCII-safe strings in PDF only */
 function pdfMoney(amount) {
@@ -55,13 +54,11 @@ function ensureSpace(pdf, y, need, margin) {
 export default function TicketView({ booking, onClose }) {
   const [busy, setBusy] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
-  const [emailTo, setEmailTo] = useState(booking?.customerEmail || '');
   const [emailSent, setEmailSent] = useState(null);
 
   useEffect(() => {
-    setEmailTo(booking?.customerEmail || '');
     setEmailSent(null);
-  }, [booking?._id, booking?.customerEmail]);
+  }, [booking?._id]);
 
   const movie = booking?.movieId;
   const show = booking?.showId;
@@ -412,13 +409,13 @@ export default function TicketView({ booking, onClose }) {
   }
 
   async function handleSendEmail() {
-    const to = String(emailTo || '').trim();
+    const to = String(booking.customerEmail || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
-      toast.error('Enter a valid email address');
+      toast.error('This booking has no email. Add email when creating/editing the booking.');
       return;
     }
     await withBusy('email', async () => {
-      const res = await bookingApi.sendEmail(booking._id, { email: to });
+      const res = await bookingApi.sendEmail(booking._id);
       setEmailSent(res.data?.summary || {
         customerName: booking.customerName,
         customerEmail: to,
@@ -573,16 +570,15 @@ export default function TicketView({ booking, onClose }) {
             </div>
           ) : (
             <div className="space-y-2 rounded-2xl border border-line bg-paper/70 p-3">
-              <Input
-                label="Send ticket to email"
-                type="email"
-                value={emailTo}
-                onChange={(e) => setEmailTo(e.target.value)}
-                placeholder="customer@email.com"
-              />
+              <p className="text-xs text-muted">
+                Sends ticket PDF to{' '}
+                <strong className="break-all text-ink">
+                  {booking.customerEmail || '— no email on booking —'}
+                </strong>
+              </p>
               <Button
                 className="w-full min-h-12"
-                disabled={Boolean(busy)}
+                disabled={Boolean(busy) || !booking.customerEmail}
                 loading={busy === 'email'}
                 onClick={handleSendEmail}
               >

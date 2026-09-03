@@ -254,7 +254,7 @@ async function updateBooking(bookingId, { customerName, mobileNumber, customerEm
         customerName !== undefined ? customerName : booking.customerName,
         mobileNumber !== undefined ? mobileNumber : booking.mobileNumber,
         customerEmail !== undefined ? customerEmail : booking.customerEmail,
-        { requireEmail: false }
+        { requireEmail: true }
       );
       booking.customerName = name;
       booking.mobileNumber = mobile;
