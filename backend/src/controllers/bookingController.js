@@ -9,6 +9,7 @@ const {
   listShowGateBookings,
   ensureScanToken,
 } = require('../services/bookingService');
+const { sendBookingTicketEmail } = require('../services/emailService');
 const { AppError, asyncHandler } = require('../middleware/errorMiddleware');
 
 function parsePagination(query) {
@@ -46,6 +47,7 @@ const listBookings = asyncHandler(async (req, res) => {
       { bookingNumber: new RegExp(q, 'i') },
       { customerName: new RegExp(q, 'i') },
       { mobileNumber: new RegExp(q, 'i') },
+      { customerEmail: new RegExp(q, 'i') },
     ];
   }
 
@@ -172,6 +174,40 @@ const listShowGateHandler = asyncHandler(async (req, res) => {
   });
 });
 
+const sendBookingEmailHandler = asyncHandler(async (req, res) => {
+  let booking = await Booking.findById(req.params.id);
+  if (!booking) throw new AppError('Booking not found', 404, 'NOT_FOUND');
+  if (booking.bookingStatus === 'CANCELLED') {
+    throw new AppError('Cannot email a cancelled booking', 400, 'BOOKING_CANCELLED');
+  }
+
+  booking = await ensureScanToken(booking);
+  await booking.populate([
+    { path: 'movieId', select: 'title posterImage language genre durationMinutes' },
+    { path: 'showId', select: POPULATE_SHOW },
+  ]);
+
+  const toEmail = String(req.body.email || booking.customerEmail || '')
+    .trim()
+    .toLowerCase();
+  if (!toEmail) {
+    throw new AppError('Customer email is required to send the ticket', 400, 'VALIDATION_ERROR');
+  }
+
+  if (!booking.customerEmail || booking.customerEmail !== toEmail) {
+    booking.customerEmail = toEmail;
+    await booking.save();
+  }
+
+  const result = await sendBookingTicketEmail(booking.toObject(), toEmail);
+
+  res.json({
+    success: true,
+    message: `Ticket emailed to ${toEmail}`,
+    data: result,
+  });
+});
+
 module.exports = {
   listBookings,
   getBooking,
@@ -182,4 +218,5 @@ module.exports = {
   lookupTicketHandler,
   checkInTicketHandler,
   listShowGateHandler,
+  sendBookingEmailHandler,
 };

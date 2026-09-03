@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Download, MessageCircle, Printer, Share2, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  Download,
+  Mail,
+  MessageCircle,
+  Printer,
+  Share2,
+  X,
+} from 'lucide-react';
 import { formatCurrency, formatDate, formatTime } from '../../utils/format';
+import { bookingApi } from '../../services/bookingApi';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
+import { Input } from '../common/Input';
 
 /** jsPDF Helvetica cannot draw ₹ / × / · — use ASCII-safe strings in PDF only */
 function pdfMoney(amount) {
@@ -45,6 +55,13 @@ function ensureSpace(pdf, y, need, margin) {
 export default function TicketView({ booking, onClose }) {
   const [busy, setBusy] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
+  const [emailTo, setEmailTo] = useState(booking?.customerEmail || '');
+  const [emailSent, setEmailSent] = useState(null);
+
+  useEffect(() => {
+    setEmailTo(booking?.customerEmail || '');
+    setEmailSent(null);
+  }, [booking?._id, booking?.customerEmail]);
 
   const movie = booking?.movieId;
   const show = booking?.showId;
@@ -394,6 +411,26 @@ export default function TicketView({ booking, onClose }) {
     });
   }
 
+  async function handleSendEmail() {
+    const to = String(emailTo || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      toast.error('Enter a valid email address');
+      return;
+    }
+    await withBusy('email', async () => {
+      const res = await bookingApi.sendEmail(booking._id, { email: to });
+      setEmailSent(res.data?.summary || {
+        customerName: booking.customerName,
+        customerEmail: to,
+        seats: seatLines,
+        totalLabel: formatCurrency(booking.totalAmount),
+        bookingNumber: booking.bookingNumber,
+        movieTitle,
+      });
+      toast.success(res.message || `Ticket emailed to ${to}`);
+    });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4">
       <div className="no-print absolute inset-0" onClick={onClose} aria-hidden />
@@ -402,7 +439,7 @@ export default function TicketView({ booking, onClose }) {
         <div className="no-print flex shrink-0 items-center justify-between border-b border-line px-4 py-3 sm:px-5">
           <div>
             <p className="text-sm font-bold text-ink">Ticket ready</p>
-            <p className="text-xs text-muted">QR · Download · Share · Print</p>
+            <p className="text-xs text-muted">Email · QR · Download · Share · Print</p>
           </div>
           <button
             type="button"
@@ -436,6 +473,9 @@ export default function TicketView({ booking, onClose }) {
 
               <Row label="Customer" value={booking.customerName} />
               <Row label="Mobile" value={booking.mobileNumber} />
+              {booking.customerEmail ? (
+                <Row label="Email" value={booking.customerEmail} />
+              ) : null}
               <Row label="Seats" value={seatsText} />
               <Row
                 label="Guest"
@@ -480,6 +520,77 @@ export default function TicketView({ booking, onClose }) {
         </div>
 
         <div className="no-print shrink-0 space-y-2 border-t border-line px-4 py-3 safe-bottom sm:px-5 sm:py-4">
+          {emailSent ? (
+            <div className="space-y-3 rounded-2xl border border-success/25 bg-success/5 p-3 text-left">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 shrink-0 text-success" size={22} />
+                <div className="min-w-0">
+                  <p className="font-bold text-success">Email sent successfully</p>
+                  <p className="mt-0.5 break-all text-xs text-muted">
+                    To {emailSent.customerEmail}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5 text-sm text-ink">
+                <p>
+                  <span className="text-muted">Name: </span>
+                  <strong>{emailSent.customerName}</strong>
+                </p>
+                <p>
+                  <span className="text-muted">Booking: </span>
+                  <strong>{emailSent.bookingNumber}</strong>
+                </p>
+                {emailSent.movieTitle && (
+                  <p>
+                    <span className="text-muted">Movie: </span>
+                    <strong>{emailSent.movieTitle}</strong>
+                  </p>
+                )}
+                <p className="break-words">
+                  <span className="text-muted">Seats: </span>
+                  <strong>
+                    {Array.isArray(emailSent.seats)
+                      ? emailSent.seats.join(', ')
+                      : emailSent.seats || seatsText}
+                  </strong>
+                </p>
+                <p>
+                  <span className="text-muted">Total bill: </span>
+                  <strong className="text-teal">
+                    {emailSent.totalLabel || formatCurrency(booking.totalAmount)}
+                  </strong>
+                </p>
+                <p className="text-xs text-muted">PDF ticket attached in the email.</p>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setEmailSent(null)}
+                disabled={Boolean(busy)}
+              >
+                Send again
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2 rounded-2xl border border-line bg-paper/70 p-3">
+              <Input
+                label="Send ticket to email"
+                type="email"
+                value={emailTo}
+                onChange={(e) => setEmailTo(e.target.value)}
+                placeholder="customer@email.com"
+              />
+              <Button
+                className="w-full min-h-12"
+                disabled={Boolean(busy)}
+                loading={busy === 'email'}
+                onClick={handleSendEmail}
+              >
+                <Mail size={16} /> Send email
+              </Button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"

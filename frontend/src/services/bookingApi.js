@@ -10,4 +10,6 @@ export const bookingApi = {
   gateList: (showId) => api.get(`/bookings/gate/show/${showId}`).then((r) => r.data),
   gateLookup: (payload) => api.post('/bookings/gate/lookup', payload).then((r) => r.data),
   gateCheckIn: (payload) => api.post('/bookings/gate/check-in', payload).then((r) => r.data),
+  sendEmail: (id, payload = {}) =>
+    api.post(`/bookings/${id}/send-email`, payload).then((r) => r.data),
 };

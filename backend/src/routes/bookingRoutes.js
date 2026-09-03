@@ -10,6 +10,7 @@ const {
   lookupTicketHandler,
   checkInTicketHandler,
   listShowGateHandler,
+  sendBookingEmailHandler,
 } = require('../controllers/bookingController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
@@ -47,6 +48,7 @@ router.post(
     body('showId').notEmpty().withMessage('showId is required'),
     body('customerName').trim().isLength({ min: 2, max: 100 }).withMessage('Valid customer name is required'),
     body('mobileNumber').trim().matches(/^[6-9]\d{9}$/).withMessage('Valid Indian mobile number is required'),
+    body('customerEmail').trim().isEmail().withMessage('Valid customer email is required'),
     body('seats').isArray({ min: 1 }).withMessage('At least one seat is required'),
   ],
   validate,
@@ -58,10 +60,18 @@ router.put(
   [
     body('customerName').optional().trim().isLength({ min: 2, max: 100 }),
     body('mobileNumber').optional().trim().matches(/^[6-9]\d{9}$/),
+    body('customerEmail').optional().trim().isEmail(),
     body('seats').optional().isArray({ min: 1 }),
   ],
   validate,
   updateBookingHandler
+);
+
+router.post(
+  '/:id/send-email',
+  [body('email').optional().trim().isEmail().withMessage('Valid email is required')],
+  validate,
+  sendBookingEmailHandler
 );
 
 router.patch('/:id/cancel', cancelBookingHandler);

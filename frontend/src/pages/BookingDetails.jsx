@@ -25,6 +25,7 @@ export default function BookingDetails() {
   const [editing, setEditing] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [seatCategory, setSeatCategory] = useState('GUEST');
   const [showTicket, setShowTicket] = useState(false);
@@ -49,6 +50,7 @@ export default function BookingDetails() {
     if (booking) {
       setCustomerName(booking.customerName);
       setMobileNumber(booking.mobileNumber);
+      setCustomerEmail(booking.customerEmail || '');
       setSelectedSeats(
         (booking.seats || []).map((s) => ({
           seatNumber: String(s.seatNumber).toUpperCase().trim(),
@@ -155,9 +157,21 @@ export default function BookingDetails() {
         subtitle="Booking details and ticket"
         actions={
           <>
-            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setShowTicket(true)}>
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={() => setShowTicket(true)}
+            >
               Print / Share
             </Button>
+            {booking.bookingStatus === 'CONFIRMED' && (
+              <Button
+                className="flex-1 sm:flex-none"
+                onClick={() => setShowTicket(true)}
+              >
+                Send email
+              </Button>
+            )}
             {booking.bookingStatus === 'CONFIRMED' && !editing && (
               <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => setEditing(true)}>
                 Edit
@@ -183,6 +197,7 @@ export default function BookingDetails() {
             <div className="space-y-2 text-sm">
               <Row label="Customer" value={booking.customerName} />
               <Row label="Mobile" value={booking.mobileNumber} />
+              <Row label="Email" value={booking.customerEmail || '—'} />
               <Row
                 label="Seats"
                 value={(booking.seats || []).map(seatLabel).join(', ')}
@@ -229,6 +244,15 @@ export default function BookingDetails() {
                   value={mobileNumber}
                   onChange={(e) => setMobileNumber(e.target.value)}
                 />
+                <div className="sm:col-span-2">
+                  <Input
+                    label="Email"
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="customer@email.com"
+                  />
+                </div>
               </div>
               <Select
                 label="Assign seats as"
@@ -262,6 +286,7 @@ export default function BookingDetails() {
                     updateMutation.mutate({
                       customerName,
                       mobileNumber,
+                      customerEmail,
                       seats: selectedSeats,
                     })
                   }
@@ -296,6 +321,9 @@ export default function BookingDetails() {
         <div className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
           <h3 className="font-display text-lg font-bold">Actions</h3>
           <Button className="w-full" onClick={() => setShowTicket(true)}>
+            Send email / PDF
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => setShowTicket(true)}>
             Download / Share PDF
           </Button>
           <Link to="/verify">

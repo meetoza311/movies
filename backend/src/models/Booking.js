@@ -58,6 +58,12 @@ const bookingSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    customerEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: '',
+    },
     seats: {
       type: [bookingSeatSchema],
       required: true,
@@ -135,6 +141,7 @@ const bookingSchema = new mongoose.Schema(
 );
 
 bookingSchema.index({ mobileNumber: 1 });
+bookingSchema.index({ customerEmail: 1 });
 bookingSchema.index({ showId: 1, bookingStatus: 1 });
 bookingSchema.index({ showId: 1, checkInStatus: 1 });
 bookingSchema.index({ createdAt: -1 });

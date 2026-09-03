@@ -34,6 +34,7 @@ export default function BookingCreate() {
   const [seatCategory, setSeatCategory] = useState('GUEST');
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [ticket, setTicket] = useState(null);
 
   const moviesQuery = useQuery({
@@ -105,6 +106,7 @@ export default function BookingCreate() {
         showId,
         customerName,
         mobileNumber,
+        customerEmail,
         seats: selectedSeats,
       }),
     onSuccess: (res) => {
@@ -141,7 +143,8 @@ export default function BookingCreate() {
     if (step === 4) {
       return (
         customerName.trim().length >= 2 &&
-        /^[6-9]\d{9}$/.test(mobileNumber.trim())
+        /^[6-9]\d{9}$/.test(mobileNumber.trim()) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())
       );
     }
     return true;
@@ -337,6 +340,16 @@ export default function BookingCreate() {
               placeholder="10-digit Indian mobile"
               required
             />
+            <div className="sm:col-span-2">
+              <Input
+                label="Email"
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="customer@email.com"
+                required
+              />
+            </div>
           </div>
         )}
 
@@ -362,6 +375,7 @@ export default function BookingCreate() {
             <SummaryRow label="Quantity" value={selectedSeats.length} />
             <SummaryRow label="Customer" value={customerName} />
             <SummaryRow label="Mobile" value={mobileNumber} />
+            <SummaryRow label="Email" value={customerEmail} />
             <div className="rounded-xl bg-paper px-4 py-3">
               <p className="text-xs font-bold uppercase tracking-wide text-muted">Total</p>
               <p className="font-display text-3xl font-extrabold text-teal">
@@ -420,6 +434,7 @@ export default function BookingCreate() {
             setSelectedSeats([]);
             setCustomerName('');
             setMobileNumber('');
+            setCustomerEmail('');
             setSeatCategory('GUEST');
             setShowId(String(nextShowId || ''));
             setMovieId(String(nextMovieId || ''));

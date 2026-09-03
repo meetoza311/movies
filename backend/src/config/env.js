@@ -23,5 +23,13 @@ module.exports = {
   adminName: process.env.ADMIN_NAME || 'Administrator',
   adminEmail: process.env.ADMIN_EMAIL || 'admin@example.com',
   adminPassword: process.env.ADMIN_PASSWORD || 'change_me',
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: String(process.env.SMTP_SECURE || 'false') === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: String(process.env.SMTP_PASS || '').replace(/\s+/g, ''),
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || '',
+  },
   getMissingRequired,
 };

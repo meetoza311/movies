@@ -201,6 +201,7 @@ describe('Bookings', () => {
         showId,
         customerName: 'Rahul Sharma',
         mobileNumber: '9876543210',
+        customerEmail: 'guest@example.com',
         seats: ['A1', 'A2', 'A3'],
       });
 
@@ -225,6 +226,7 @@ describe('Bookings', () => {
         showId,
         customerName: 'First User',
         mobileNumber: '9876543210',
+        customerEmail: 'guest@example.com',
         seats: ['A1', 'A2'],
       });
     expect(first.status).toBe(201);
@@ -236,6 +238,7 @@ describe('Bookings', () => {
         showId,
         customerName: 'Second User',
         mobileNumber: '9123456780',
+        customerEmail: 'guest2@example.com',
         seats: ['A2', 'A3'],
       });
     expect(second.status).toBe(409);
@@ -251,12 +254,14 @@ describe('Bookings', () => {
       showId,
       customerName: 'User A',
       mobileNumber: '9876543210',
+      customerEmail: 'guest@example.com',
       seats: ['B1'],
     };
     const payloadB = {
       showId,
       customerName: 'User B',
       mobileNumber: '9123456780',
+      customerEmail: 'guest2@example.com',
       seats: ['B1'],
     };
 
@@ -279,6 +284,7 @@ describe('Bookings', () => {
         showId: show.body.data._id,
         customerName: 'Cancel Me',
         mobileNumber: '9876543210',
+        customerEmail: 'guest@example.com',
         seats: ['A1'],
       });
 
@@ -304,6 +310,7 @@ describe('Bookings', () => {
         showId: show.body.data._id,
         customerName: 'Edit Me',
         mobileNumber: '9876543210',
+        customerEmail: 'guest@example.com',
         seats: ['A1', 'A2'],
       });
 
@@ -366,6 +373,7 @@ describe('Movie limit', () => {
       showId: show._id,
       customerName: 'Old',
       mobileNumber: '9876543210',
+      customerEmail: 'guest@example.com',
       seats: [{ seatNumber: 'A1', category: 'GUEST', price: 100 }],
       seatPrice: 100,
       numberOfSeats: 1,

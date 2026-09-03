@@ -10,11 +10,13 @@ const { AppError } = require('../middleware/errorMiddleware');
 const logger = require('../utils/logger');
 
 const INDIAN_MOBILE = /^[6-9]\d{9}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CATEGORIES = new Set(['GUEST', 'OWNER']);
 
-function validateCustomer(customerName, mobileNumber) {
+function validateCustomer(customerName, mobileNumber, customerEmail, { requireEmail = true } = {}) {
   const name = String(customerName || '').trim();
   const mobile = String(mobileNumber || '').trim();
+  const email = String(customerEmail || '').trim().toLowerCase();
 
   if (name.length < 2 || name.length > 100) {
     throw new AppError(
@@ -32,7 +34,15 @@ function validateCustomer(customerName, mobileNumber) {
     );
   }
 
-  return { name, mobile };
+  if (email) {
+    if (!EMAIL_RE.test(email)) {
+      throw new AppError('Valid customer email is required', 400, 'VALIDATION_ERROR');
+    }
+  } else if (requireEmail) {
+    throw new AppError('Valid customer email is required', 400, 'VALIDATION_ERROR');
+  }
+
+  return { name, mobile, email };
 }
 
 function resolveShowPrices(show) {
@@ -124,8 +134,10 @@ async function withSafeSession(work) {
   }
 }
 
-async function createBooking({ showId, customerName, mobileNumber, seats }) {
-  const { name, mobile } = validateCustomer(customerName, mobileNumber);
+async function createBooking({ showId, customerName, mobileNumber, customerEmail, seats }) {
+  const { name, mobile, email } = validateCustomer(customerName, mobileNumber, customerEmail, {
+    requireEmail: true,
+  });
 
   return withSafeSession(async (session) => {
     const showQuery = Show.findById(showId);
@@ -164,6 +176,7 @@ async function createBooking({ showId, customerName, mobileNumber, seats }) {
         showId: show._id,
         customerName: name,
         mobileNumber: mobile,
+        customerEmail: email,
         seats: seatItems,
         guestPrice: prices.guestPrice,
         ownerPrice: prices.ownerPrice,
@@ -219,7 +232,7 @@ async function createBooking({ showId, customerName, mobileNumber, seats }) {
   });
 }
 
-async function updateBooking(bookingId, { customerName, mobileNumber, seats }) {
+async function updateBooking(bookingId, { customerName, mobileNumber, customerEmail, seats }) {
   return withSafeSession(async (session) => {
     const bookingQuery = Booking.findById(bookingId);
     if (session) bookingQuery.session(session);
@@ -232,13 +245,20 @@ async function updateBooking(bookingId, { customerName, mobileNumber, seats }) {
       throw new AppError('Cannot edit a cancelled booking', 400, 'BOOKING_CANCELLED');
     }
 
-    if (customerName !== undefined || mobileNumber !== undefined) {
-      const { name, mobile } = validateCustomer(
+    if (
+      customerName !== undefined ||
+      mobileNumber !== undefined ||
+      customerEmail !== undefined
+    ) {
+      const { name, mobile, email } = validateCustomer(
         customerName !== undefined ? customerName : booking.customerName,
-        mobileNumber !== undefined ? mobileNumber : booking.mobileNumber
+        mobileNumber !== undefined ? mobileNumber : booking.mobileNumber,
+        customerEmail !== undefined ? customerEmail : booking.customerEmail,
+        { requireEmail: false }
       );
       booking.customerName = name;
       booking.mobileNumber = mobile;
+      booking.customerEmail = email;
     }
 
     if (seats !== undefined) {

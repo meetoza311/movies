@@ -37,7 +37,10 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",
     "morgan": "^1.12.0",
-    "node-cron": "^4.6.0"
+    "node-cron": "^4.6.0",
+    "nodemailer": "^9.1.1",
+    "pdfkit": "^0.20.2",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
