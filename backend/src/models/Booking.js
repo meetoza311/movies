@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const BOOKING_STATUSES = ['CONFIRMED', 'CANCELLED'];
+const SEAT_CATEGORIES = ['GUEST', 'OWNER'];
 
 const bookingSeatSchema = new mongoose.Schema(
   {
@@ -9,6 +10,16 @@ const bookingSeatSchema = new mongoose.Schema(
       required: true,
       trim: true,
       uppercase: true,
+    },
+    category: {
+      type: String,
+      enum: SEAT_CATEGORIES,
+      default: 'GUEST',
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
     },
   },
   { _id: false }
@@ -55,6 +66,18 @@ const bookingSchema = new mongoose.Schema(
         message: 'At least one seat is required',
       },
     },
+    /** Snapshot prices at booking time */
+    guestPrice: {
+      type: Number,
+      min: 0,
+      default: 80,
+    },
+    ownerPrice: {
+      type: Number,
+      min: 0,
+      default: 50,
+    },
+    /** Legacy average / primary price for older clients */
     seatPrice: {
       type: Number,
       required: true,
@@ -83,7 +106,6 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// bookingNumber already unique via schema field
 bookingSchema.index({ mobileNumber: 1 });
 bookingSchema.index({ showId: 1, bookingStatus: 1 });
 bookingSchema.index({ createdAt: -1 });
@@ -91,3 +113,4 @@ bookingSchema.index({ customerName: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
 module.exports.BOOKING_STATUSES = BOOKING_STATUSES;
+module.exports.SEAT_CATEGORIES = SEAT_CATEGORIES;

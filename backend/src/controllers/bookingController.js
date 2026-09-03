@@ -44,7 +44,7 @@ const listBookings = asyncHandler(async (req, res) => {
   const [bookings, total] = await Promise.all([
     Booking.find(filter)
       .populate('movieId', 'title posterImage language')
-      .populate('showId', 'showDate startTime endTime seatPrice')
+      .populate('showId', 'showDate startTime endTime seatPrice guestPrice ownerPrice')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -68,7 +68,10 @@ const listBookings = asyncHandler(async (req, res) => {
 const getBooking = asyncHandler(async (req, res) => {
   const booking = await Booking.findById(req.params.id)
     .populate('movieId', 'title posterImage language genre durationMinutes')
-    .populate('showId', 'showDate startTime endTime seatPrice totalSeats status')
+    .populate(
+      'showId',
+      'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status'
+    )
     .lean();
 
   if (!booking) throw new AppError('Booking not found', 404, 'NOT_FOUND');
@@ -84,7 +87,10 @@ const createBookingHandler = asyncHandler(async (req, res) => {
   const booking = await createBooking(req.body);
   const populated = await Booking.findById(booking._id)
     .populate('movieId', 'title posterImage language genre durationMinutes')
-    .populate('showId', 'showDate startTime endTime seatPrice totalSeats status');
+    .populate(
+      'showId',
+      'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status'
+    );
 
   res.status(201).json({
     success: true,
@@ -97,7 +103,10 @@ const updateBookingHandler = asyncHandler(async (req, res) => {
   const booking = await updateBooking(req.params.id, req.body);
   const populated = await Booking.findById(booking._id)
     .populate('movieId', 'title posterImage language genre durationMinutes')
-    .populate('showId', 'showDate startTime endTime seatPrice totalSeats status');
+    .populate(
+      'showId',
+      'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status'
+    );
 
   res.json({
     success: true,

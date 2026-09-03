@@ -52,11 +52,12 @@ export default function ShowDetails() {
         }
       />
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Stat label="Total seats" value={stats.total ?? show.totalSeats} />
         <Stat label="Available" value={stats.available ?? '—'} />
         <Stat label="Booked" value={stats.booked ?? '—'} />
-        <Stat label="Seat price" value={formatCurrency(show.seatPrice)} />
+        <Stat label="Owner price" value={formatCurrency(show.ownerPrice ?? 50)} />
+        <Stat label="Guest price" value={formatCurrency(show.guestPrice ?? show.seatPrice ?? 80)} />
       </div>
 
       <div className="mb-4 flex items-center gap-2">
@@ -67,7 +68,7 @@ export default function ShowDetails() {
         {seatsQuery.isLoading ? (
           <Skeleton className="h-64" />
         ) : (
-          <SeatMap seats={seats} readonly selected={[]} />
+          <SeatMap seats={seats} readonly selected={[]} mode="view" />
         )}
       </div>
 
@@ -90,7 +91,17 @@ export default function ShowDetails() {
                 </p>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <span>{(b.seats || []).map((s) => s.seatNumber).join(', ')}</span>
+                <span>
+                  {(b.seats || [])
+                    .map((s) => {
+                      const cat =
+                        String(s.category || 'GUEST').toUpperCase() === 'OWNER'
+                          ? 'O'
+                          : 'G';
+                      return `${s.seatNumber}(${cat})`;
+                    })
+                    .join(', ')}
+                </span>
                 <Badge tone={b.bookingStatus}>{b.bookingStatus}</Badge>
                 <span className="font-bold">{formatCurrency(b.totalAmount)}</span>
               </div>

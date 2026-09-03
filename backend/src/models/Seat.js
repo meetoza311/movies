@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const SEAT_STATUSES = ['AVAILABLE', 'BOOKED'];
+const SEAT_CATEGORIES = ['GUEST', 'OWNER'];
 
 const seatSchema = new mongoose.Schema(
   {
@@ -32,6 +33,11 @@ const seatSchema = new mongoose.Schema(
       enum: SEAT_STATUSES,
       default: 'AVAILABLE',
     },
+    category: {
+      type: String,
+      enum: SEAT_CATEGORIES,
+      default: undefined,
+    },
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',
@@ -46,3 +52,4 @@ seatSchema.index({ showId: 1, status: 1 });
 
 module.exports = mongoose.model('Seat', seatSchema);
 module.exports.SEAT_STATUSES = SEAT_STATUSES;
+module.exports.SEAT_CATEGORIES = SEAT_CATEGORIES;

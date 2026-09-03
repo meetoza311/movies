@@ -167,7 +167,17 @@ export default function Bookings() {
                   <div className="text-xs text-muted">{b.mobileNumber}</div>
                 </td>
                 <td className="px-4 py-3">
-                  {(b.seats || []).map((s) => s.seatNumber).join(', ')}
+                  <div className="break-words">
+                    {(b.seats || [])
+                      .map((s) => {
+                        const cat =
+                          String(s.category || 'GUEST').toUpperCase() === 'OWNER'
+                            ? 'O'
+                            : 'G';
+                        return `${s.seatNumber}(${cat})`;
+                      })
+                      .join(', ')}
+                  </div>
                 </td>
                 <td className="px-4 py-3 font-semibold">{formatCurrency(b.totalAmount)}</td>
                 <td className="px-4 py-3">
@@ -213,7 +223,13 @@ export default function Bookings() {
               {b.customerName} · {b.mobileNumber}
             </p>
             <p className="break-words text-sm text-muted">
-              {(b.seats || []).map((s) => s.seatNumber).join(', ')}
+              {(b.seats || [])
+                .map((s) => {
+                  const cat =
+                    String(s.category || 'GUEST').toUpperCase() === 'OWNER' ? 'Owner' : 'Guest';
+                  return `${s.seatNumber} (${cat})`;
+                })
+                .join(', ')}
             </p>
             <p className="mt-1 font-bold text-teal">{formatCurrency(b.totalAmount)}</p>
             <div className="mt-3 flex flex-wrap gap-2">

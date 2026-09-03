@@ -31,6 +31,7 @@ export default function BookingCreate() {
   const [date, setDate] = useState('');
   const [showId, setShowId] = useState(searchParams.get('showId') || '');
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [seatCategory, setSeatCategory] = useState('GUEST');
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [ticket, setTicket] = useState(null);
@@ -76,8 +77,27 @@ export default function BookingCreate() {
     [moviesQuery.data, movieId]
   );
 
-  const seatPrice = selectedShow?.seatPrice ?? seatsQuery.data?.data?.show?.seatPrice ?? 0;
-  const total = seatPrice * selectedSeats.length;
+  const showPrices = useMemo(() => {
+    const show = selectedShow || seatsQuery.data?.data?.show || {};
+    return {
+      guestPrice: Number(show.guestPrice ?? show.seatPrice ?? 80),
+      ownerPrice: Number(show.ownerPrice ?? 50),
+    };
+  }, [selectedShow, seatsQuery.data]);
+
+  const total = useMemo(
+    () =>
+      selectedSeats.reduce(
+        (sum, s) =>
+          sum +
+          (s.category === 'OWNER' ? showPrices.ownerPrice : showPrices.guestPrice),
+        0
+      ),
+    [selectedSeats, showPrices]
+  );
+
+  const guestCount = selectedSeats.filter((s) => s.category === 'GUEST').length;
+  const ownerCount = selectedSeats.filter((s) => s.category === 'OWNER').length;
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -106,11 +126,11 @@ export default function BookingCreate() {
 
   function toggleSeat(seatNumber) {
     const next = String(seatNumber).toUpperCase().trim();
-    setSelectedSeats((prev) =>
-      prev.includes(next)
-        ? prev.filter((s) => s !== next)
-        : [...prev, next]
-    );
+    setSelectedSeats((prev) => {
+      const exists = prev.find((s) => s.seatNumber === next);
+      if (exists) return prev.filter((s) => s.seatNumber !== next);
+      return [...prev, { seatNumber: next, category: seatCategory }];
+    });
   }
 
   function canNext() {
@@ -236,7 +256,8 @@ export default function BookingCreate() {
                     Available {show.seats?.available ?? '—'} / {show.seats?.total ?? show.totalSeats}
                   </p>
                   <p className="mt-1 font-semibold text-teal">
-                    {formatCurrency(show.seatPrice)}
+                    Guest {formatCurrency(show.guestPrice ?? show.seatPrice ?? 80)} · Owner{' '}
+                    {formatCurrency(show.ownerPrice ?? 50)}
                   </p>
                 </button>
               ))}
@@ -246,23 +267,50 @@ export default function BookingCreate() {
 
         {step === 3 && (
           <div>
+            <div className="mb-3 grid gap-3 sm:grid-cols-2">
+              <Select
+                label="Assign seats as"
+                value={seatCategory}
+                onChange={(e) => setSeatCategory(e.target.value)}
+              >
+                <option value="GUEST">
+                  Guest — {formatCurrency(showPrices.guestPrice)}
+                </option>
+                <option value="OWNER">
+                  Owner — {formatCurrency(showPrices.ownerPrice)}
+                </option>
+              </Select>
+              <div className="rounded-xl bg-paper px-3 py-2 text-xs text-muted sm:self-end sm:py-3">
+                Tap seats to assign as <strong>{seatCategory === 'OWNER' ? 'Owner' : 'Guest'}</strong>.
+                Change the dropdown anytime — no seat limit per type.
+              </div>
+            </div>
             {seatsQuery.isLoading ? (
               <Skeleton className="h-64" />
             ) : (
               <SeatMap
                 seats={seatsQuery.data?.data?.seats || []}
                 selected={selectedSeats}
+                activeCategory={seatCategory}
                 onToggle={toggleSeat}
+                mode="book"
               />
             )}
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2.5 text-xs sm:mt-4 sm:px-4 sm:py-3 sm:text-sm">
+            <div className="mt-3 flex items-start justify-between gap-2 rounded-xl bg-paper px-3 py-2.5 text-xs sm:mt-4 sm:px-4 sm:py-3 sm:text-sm">
               <div className="min-w-0">
-                <p className="truncate">
+                <p className="break-words">
                   <span className="text-muted">Seats </span>
-                  <strong>{selectedSeats.join(', ') || 'None'}</strong>
+                  <strong>
+                    {selectedSeats.length
+                      ? selectedSeats
+                          .map((s) => `${s.seatNumber}(${s.category === 'OWNER' ? 'O' : 'G'})`)
+                          .join(', ')
+                      : 'None'}
+                  </strong>
                 </p>
-                <p className="text-muted sm:hidden">
-                  {selectedSeats.length} × {formatCurrency(seatPrice)}
+                <p className="text-muted">
+                  Guest {guestCount} × {formatCurrency(showPrices.guestPrice)} · Owner{' '}
+                  {ownerCount} × {formatCurrency(showPrices.ownerPrice)}
                 </p>
               </div>
               <p className="shrink-0 font-display text-lg font-extrabold text-teal sm:text-xl">
@@ -296,8 +344,20 @@ export default function BookingCreate() {
             <SummaryRow label="Movie" value={selectedMovie?.title} />
             <SummaryRow label="Date" value={formatDate(selectedShow?.showDate || date)} />
             <SummaryRow label="Time" value={formatTime(selectedShow?.startTime)} />
-            <SummaryRow label="Seats" value={selectedSeats.join(', ')} />
-            <SummaryRow label="Seat price" value={formatCurrency(seatPrice)} />
+            <SummaryRow
+              label="Seats"
+              value={selectedSeats
+                .map((s) => `${s.seatNumber} (${s.category === 'OWNER' ? 'Owner' : 'Guest'})`)
+                .join(', ')}
+            />
+            <SummaryRow
+              label="Guest seats"
+              value={`${guestCount} × ${formatCurrency(showPrices.guestPrice)}`}
+            />
+            <SummaryRow
+              label="Owner seats"
+              value={`${ownerCount} × ${formatCurrency(showPrices.ownerPrice)}`}
+            />
             <SummaryRow label="Quantity" value={selectedSeats.length} />
             <SummaryRow label="Customer" value={customerName} />
             <SummaryRow label="Mobile" value={mobileNumber} />

@@ -158,7 +158,9 @@ async function seedDemo() {
           startTime: t.start,
           endTime: t.end,
           totalSeats: 60,
-          seatPrice: movie.price,
+          guestPrice: movie.price || 80,
+          ownerPrice: 50,
+          seatPrice: movie.price || 80,
           status: 'scheduled',
         });
         await createSeatsForShow(show._id, 60);

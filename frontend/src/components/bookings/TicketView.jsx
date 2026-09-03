@@ -13,7 +13,25 @@ export default function TicketView({ booking, onClose }) {
   const movie = booking.movieId;
   const show = booking.showId;
   const movieTitle = typeof movie === 'object' ? movie.title : 'Movie';
-  const seats = (booking.seats || []).map((s) => s.seatNumber).join(', ');
+  const seatLines = (booking.seats || []).map((s) => {
+    const cat = String(s.category || 'GUEST').toUpperCase() === 'OWNER' ? 'Owner' : 'Guest';
+    const price =
+      s.price != null
+        ? formatCurrency(s.price)
+        : formatCurrency(
+            cat === 'Owner'
+              ? booking.ownerPrice ?? 50
+              : booking.guestPrice ?? booking.seatPrice ?? 80
+          );
+    return `${s.seatNumber} (${cat} ${price})`;
+  });
+  const seatsText = seatLines.join(', ') || '—';
+  const guestCount = (booking.seats || []).filter(
+    (s) => String(s.category || 'GUEST').toUpperCase() !== 'OWNER'
+  ).length;
+  const ownerCount = (booking.seats || []).filter(
+    (s) => String(s.category || '').toUpperCase() === 'OWNER'
+  ).length;
   const fileName = `Savan-Sentosa-${booking.bookingNumber || 'ticket'}.pdf`;
 
   const shareText = [
@@ -22,7 +40,8 @@ export default function TicketView({ booking, onClose }) {
     `Date: ${formatDate(show?.showDate)}`,
     `Time: ${formatTime(show?.startTime)}`,
     `Customer: ${booking.customerName}`,
-    `Seats: ${seats}`,
+    `Seats: ${seatsText}`,
+    `Guest: ${guestCount} · Owner: ${ownerCount}`,
     `Total: ${formatCurrency(booking.totalAmount)}`,
     `Booking ID: ${booking.bookingNumber}`,
   ].join('\n');
@@ -69,11 +88,12 @@ export default function TicketView({ booking, onClose }) {
       ['Time', formatTime(show?.startTime)],
       ['Customer', booking.customerName || '—'],
       ['Mobile', booking.mobileNumber || '—'],
-      ['Seats', seats || '—'],
+      ['Seats', seatsText],
       [
-        'Price',
-        `${formatCurrency(booking.seatPrice)} x ${booking.numberOfSeats || 0}`,
+        'Guest',
+        `${guestCount} x ${formatCurrency(booking.guestPrice ?? booking.seatPrice ?? 80)}`,
       ],
+      ['Owner', `${ownerCount} x ${formatCurrency(booking.ownerPrice ?? 50)}`],
       ['Booking ID', booking.bookingNumber || '—'],
       ['Status', booking.bookingStatus || '—'],
     ];
@@ -246,10 +266,16 @@ export default function TicketView({ booking, onClose }) {
               <Row label="Time" value={formatTime(show?.startTime)} />
               <Row label="Customer" value={booking.customerName} />
               <Row label="Mobile" value={booking.mobileNumber} />
-              <Row label="Seats" value={seats} />
+              <Row label="Seats" value={seatsText} />
               <Row
-                label="Price"
-                value={`${formatCurrency(booking.seatPrice)} × ${booking.numberOfSeats}`}
+                label="Guest"
+                value={`${guestCount} × ${formatCurrency(
+                  booking.guestPrice ?? booking.seatPrice ?? 80
+                )}`}
+              />
+              <Row
+                label="Owner"
+                value={`${ownerCount} × ${formatCurrency(booking.ownerPrice ?? 50)}`}
               />
               <div className="rounded-xl bg-paper px-4 py-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted">Total</p>

@@ -177,7 +177,8 @@ export default function Dashboard() {
                           </p>
                         </div>
                         <p className="text-sm font-bold text-gold">
-                          {formatCurrency(show.seatPrice)}
+                          G {formatCurrency(show.guestPrice ?? show.seatPrice)} · O{' '}
+                          {formatCurrency(show.ownerPrice ?? 50)}
                         </p>
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">

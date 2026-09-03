@@ -9,6 +9,7 @@ const { AppError } = require('../middleware/errorMiddleware');
 const logger = require('../utils/logger');
 
 const INDIAN_MOBILE = /^[6-9]\d{9}$/;
+const CATEGORIES = new Set(['GUEST', 'OWNER']);
 
 function validateCustomer(customerName, mobileNumber) {
   const name = String(customerName || '').trim();
@@ -33,16 +34,61 @@ function validateCustomer(customerName, mobileNumber) {
   return { name, mobile };
 }
 
-function normalizeSeatInput(seats) {
+function resolveShowPrices(show) {
+  const guestPrice =
+    show.guestPrice != null && !Number.isNaN(Number(show.guestPrice))
+      ? Number(show.guestPrice)
+      : Number(show.seatPrice) || 80;
+  const ownerPrice =
+    show.ownerPrice != null && !Number.isNaN(Number(show.ownerPrice))
+      ? Number(show.ownerPrice)
+      : 50;
+  return { guestPrice, ownerPrice };
+}
+
+/**
+ * Accepts:
+ * - ["A1","A2"] → all GUEST (legacy)
+ * - [{ seatNumber, category }]
+ */
+function normalizeSeatSelection(seats, prices) {
   if (!Array.isArray(seats) || seats.length === 0) {
     throw new AppError('At least one seat is required', 400, 'VALIDATION_ERROR');
   }
 
-  return seats.map((s) => {
-    if (typeof s === 'string') return s.toUpperCase().trim();
-    if (s && s.seatNumber) return String(s.seatNumber).toUpperCase().trim();
-    throw new AppError('Invalid seat format', 400, 'VALIDATION_ERROR');
+  const normalized = seats.map((s) => {
+    let seatNumber;
+    let category = 'GUEST';
+
+    if (typeof s === 'string') {
+      seatNumber = s.toUpperCase().trim();
+    } else if (s && s.seatNumber) {
+      seatNumber = String(s.seatNumber).toUpperCase().trim();
+      if (s.category) {
+        category = String(s.category).toUpperCase().trim();
+      }
+    } else {
+      throw new AppError('Invalid seat format', 400, 'VALIDATION_ERROR');
+    }
+
+    if (!CATEGORIES.has(category)) {
+      throw new AppError(
+        'Seat category must be GUEST or OWNER',
+        400,
+        'VALIDATION_ERROR'
+      );
+    }
+
+    const price = category === 'OWNER' ? prices.ownerPrice : prices.guestPrice;
+    return { seatNumber, category, price };
   });
+
+  const unique = new Set(normalized.map((s) => s.seatNumber));
+  if (unique.size !== normalized.length) {
+    throw new AppError('Duplicate seats in selection', 400, 'VALIDATION_ERROR');
+  }
+
+  return normalized;
 }
 
 async function withTransaction(work) {
@@ -60,10 +106,6 @@ async function withTransaction(work) {
   }
 }
 
-/**
- * Fallback when transactions are unavailable (standalone MongoDB).
- * Still uses atomic seat updates with status checks.
- */
 async function withSafeSession(work) {
   try {
     return await withTransaction(work);
@@ -83,7 +125,6 @@ async function withSafeSession(work) {
 
 async function createBooking({ showId, customerName, mobileNumber, seats }) {
   const { name, mobile } = validateCustomer(customerName, mobileNumber);
-  const seatNumbers = normalizeSeatInput(seats);
 
   return withSafeSession(async (session) => {
     const showQuery = Show.findById(showId);
@@ -104,11 +145,15 @@ async function createBooking({ showId, customerName, mobileNumber, seats }) {
       throw new AppError('Movie not found', 404, 'NOT_FOUND');
     }
 
+    const prices = resolveShowPrices(show);
+    const seatItems = normalizeSeatSelection(seats, prices);
+    const seatNumbers = seatItems.map((s) => s.seatNumber);
+
     await assertSeatsAvailable(show._id, seatNumbers, session);
 
-    const numberOfSeats = seatNumbers.length;
-    const seatPrice = show.seatPrice;
-    const totalAmount = seatPrice * numberOfSeats;
+    const numberOfSeats = seatItems.length;
+    const totalAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
+    const seatPrice = numberOfSeats ? totalAmount / numberOfSeats : prices.guestPrice;
     const bookingNumber = await generateBookingNumber(session);
 
     const bookingDocs = [
@@ -118,7 +163,9 @@ async function createBooking({ showId, customerName, mobileNumber, seats }) {
         showId: show._id,
         customerName: name,
         mobileNumber: mobile,
-        seats: seatNumbers.map((seatNumber) => ({ seatNumber })),
+        seats: seatItems,
+        guestPrice: prices.guestPrice,
+        ownerPrice: prices.ownerPrice,
         seatPrice,
         numberOfSeats,
         totalAmount,
@@ -130,27 +177,38 @@ async function createBooking({ showId, customerName, mobileNumber, seats }) {
     const created = await Booking.create(bookingDocs, session ? { session } : {});
     const booking = created[0];
 
-    const updateResult = await Seat.updateMany(
-      {
-        showId: show._id,
-        seatNumber: { $in: seatNumbers },
-        status: 'AVAILABLE',
-      },
-      {
-        $set: { status: 'BOOKED', bookingId: booking._id },
-      },
-      session ? { session } : {}
-    );
-
-    if (updateResult.modifiedCount !== numberOfSeats) {
-      if (!session) {
-        await Booking.deleteOne({ _id: booking._id });
-      }
-      throw new AppError(
-        'One or more selected seats are already booked',
-        409,
-        'SEAT_ALREADY_BOOKED'
+    // Update each seat with its category
+    for (const item of seatItems) {
+      const result = await Seat.updateOne(
+        {
+          showId: show._id,
+          seatNumber: item.seatNumber,
+          status: 'AVAILABLE',
+        },
+        {
+          $set: {
+            status: 'BOOKED',
+            bookingId: booking._id,
+            category: item.category,
+          },
+        },
+        session ? { session } : {}
       );
+
+      if (result.modifiedCount !== 1) {
+        if (!session) {
+          await Seat.updateMany(
+            { bookingId: booking._id },
+            { $set: { status: 'AVAILABLE', bookingId: null }, $unset: { category: 1 } }
+          );
+          await Booking.deleteOne({ _id: booking._id });
+        }
+        throw new AppError(
+          'One or more selected seats are already booked',
+          409,
+          'SEAT_ALREADY_BOOKED'
+        );
+      }
     }
 
     logger.info('Booking created', { bookingNumber, showId: String(show._id) });
@@ -181,7 +239,6 @@ async function updateBooking(bookingId, { customerName, mobileNumber, seats }) {
     }
 
     if (seats !== undefined) {
-      const seatNumbers = normalizeSeatInput(seats);
       const showQuery = Show.findById(booking.showId);
       if (session) showQuery.session(session);
       const show = await showQuery;
@@ -189,6 +246,9 @@ async function updateBooking(bookingId, { customerName, mobileNumber, seats }) {
         throw new AppError('Show not found', 404, 'NOT_FOUND');
       }
 
+      const prices = resolveShowPrices(show);
+      const seatItems = normalizeSeatSelection(seats, prices);
+      const seatNumbers = seatItems.map((s) => s.seatNumber);
       const oldSeats = booking.seats.map((s) => s.seatNumber);
 
       await Seat.updateMany(
@@ -197,34 +257,48 @@ async function updateBooking(bookingId, { customerName, mobileNumber, seats }) {
           seatNumber: { $in: oldSeats },
           bookingId: booking._id,
         },
-        { $set: { status: 'AVAILABLE', bookingId: null } },
+        {
+          $set: { status: 'AVAILABLE', bookingId: null },
+          $unset: { category: 1 },
+        },
         session ? { session } : {}
       );
 
       await assertSeatsAvailable(booking.showId, seatNumbers, session, booking._id);
 
-      const updateResult = await Seat.updateMany(
-        {
-          showId: booking.showId,
-          seatNumber: { $in: seatNumbers },
-          status: 'AVAILABLE',
-        },
-        { $set: { status: 'BOOKED', bookingId: booking._id } },
-        session ? { session } : {}
-      );
-
-      if (updateResult.modifiedCount !== seatNumbers.length) {
-        throw new AppError(
-          'One or more selected seats are already booked',
-          409,
-          'SEAT_ALREADY_BOOKED'
+      for (const item of seatItems) {
+        const result = await Seat.updateOne(
+          {
+            showId: booking.showId,
+            seatNumber: item.seatNumber,
+            status: 'AVAILABLE',
+          },
+          {
+            $set: {
+              status: 'BOOKED',
+              bookingId: booking._id,
+              category: item.category,
+            },
+          },
+          session ? { session } : {}
         );
+
+        if (result.modifiedCount !== 1) {
+          throw new AppError(
+            'One or more selected seats are already booked',
+            409,
+            'SEAT_ALREADY_BOOKED'
+          );
+        }
       }
 
-      booking.seats = seatNumbers.map((seatNumber) => ({ seatNumber }));
-      booking.numberOfSeats = seatNumbers.length;
-      booking.seatPrice = show.seatPrice;
-      booking.totalAmount = show.seatPrice * seatNumbers.length;
+      const totalAmount = seatItems.reduce((sum, s) => sum + s.price, 0);
+      booking.seats = seatItems;
+      booking.numberOfSeats = seatItems.length;
+      booking.guestPrice = prices.guestPrice;
+      booking.ownerPrice = prices.ownerPrice;
+      booking.seatPrice = totalAmount / seatItems.length;
+      booking.totalAmount = totalAmount;
     }
 
     await booking.save(session ? { session } : {});
@@ -254,7 +328,10 @@ async function cancelBooking(bookingId) {
         seatNumber: { $in: seatNumbers },
         bookingId: booking._id,
       },
-      { $set: { status: 'AVAILABLE', bookingId: null } },
+      {
+        $set: { status: 'AVAILABLE', bookingId: null },
+        $unset: { category: 1 },
+      },
       session ? { session } : {}
     );
 
@@ -284,7 +361,10 @@ async function deleteBookingPermanently(bookingId) {
           seatNumber: { $in: seatNumbers },
           bookingId: booking._id,
         },
-        { $set: { status: 'AVAILABLE', bookingId: null } },
+        {
+          $set: { status: 'AVAILABLE', bookingId: null },
+          $unset: { category: 1 },
+        },
         session ? { session } : {}
       );
     }
@@ -301,5 +381,6 @@ module.exports = {
   cancelBooking,
   deleteBookingPermanently,
   validateCustomer,
+  resolveShowPrices,
   INDIAN_MOBILE,
 };

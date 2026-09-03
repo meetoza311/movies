@@ -22,6 +22,34 @@ function parseShowDate(value) {
   return d;
 }
 
+function parsePrice(value, fallback, label) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+  const price = Number(value);
+  if (Number.isNaN(price) || price < 0) {
+    throw new AppError(`${label} must be >= 0`, 400, 'VALIDATION_ERROR');
+  }
+  return price;
+}
+
+function withResolvedPrices(show) {
+  const guestPrice =
+    show.guestPrice != null && !Number.isNaN(Number(show.guestPrice))
+      ? Number(show.guestPrice)
+      : Number(show.seatPrice) || 80;
+  const ownerPrice =
+    show.ownerPrice != null && !Number.isNaN(Number(show.ownerPrice))
+      ? Number(show.ownerPrice)
+      : 50;
+  return {
+    ...show,
+    guestPrice,
+    ownerPrice,
+    seatPrice: guestPrice,
+  };
+}
+
 const listShows = asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query);
   const filter = {};
@@ -48,7 +76,7 @@ const listShows = asyncHandler(async (req, res) => {
   const withStats = await Promise.all(
     shows.map(async (show) => {
       const seats = await getSeatStats(show._id);
-      return { ...show, seats };
+      return { ...withResolvedPrices(show), seats };
     })
   );
 
@@ -79,7 +107,7 @@ const getShow = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'Show details',
-    data: { ...show, seats, bookings },
+    data: { ...withResolvedPrices(show), seats, bookings },
   });
 });
 
@@ -91,6 +119,8 @@ const createShow = asyncHandler(async (req, res) => {
     endTime,
     totalSeats,
     seatPrice,
+    guestPrice,
+    ownerPrice,
     status,
   } = req.body;
 
@@ -102,14 +132,12 @@ const createShow = asyncHandler(async (req, res) => {
     throw new AppError('Total seats must be greater than 0', 400, 'VALIDATION_ERROR');
   }
 
-  const price =
-    seatPrice !== undefined && seatPrice !== null && seatPrice !== ''
-      ? Number(seatPrice)
-      : movie.price;
-
-  if (Number.isNaN(price) || price < 0) {
-    throw new AppError('Seat price must be >= 0', 400, 'VALIDATION_ERROR');
-  }
+  const resolvedGuest = parsePrice(
+    guestPrice !== undefined ? guestPrice : seatPrice,
+    80,
+    'Guest price'
+  );
+  const resolvedOwner = parsePrice(ownerPrice, 50, 'Owner price');
 
   const date = parseShowDate(showDate);
 
@@ -132,7 +160,9 @@ const createShow = asyncHandler(async (req, res) => {
     startTime: String(startTime).trim(),
     endTime: String(endTime).trim(),
     totalSeats: seatsCount,
-    seatPrice: price,
+    guestPrice: resolvedGuest,
+    ownerPrice: resolvedOwner,
+    seatPrice: resolvedGuest,
     status: status || 'scheduled',
   });
 
@@ -144,7 +174,7 @@ const createShow = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Show created successfully',
-    data: { ...show.toObject(), seats },
+    data: { ...withResolvedPrices(show.toObject()), seats },
   });
 });
 
@@ -152,21 +182,26 @@ const updateShow = asyncHandler(async (req, res) => {
   const show = await Show.findById(req.params.id);
   if (!show) throw new AppError('Show not found', 404, 'NOT_FOUND');
 
-  const { showDate, startTime, endTime, seatPrice, status } = req.body;
+  const { showDate, startTime, endTime, seatPrice, guestPrice, ownerPrice, status } =
+    req.body;
 
   if (showDate) show.showDate = parseShowDate(showDate);
   if (startTime) show.startTime = String(startTime).trim();
   if (endTime) show.endTime = String(endTime).trim();
-  if (seatPrice !== undefined) {
-    const price = Number(seatPrice);
-    if (Number.isNaN(price) || price < 0) {
-      throw new AppError('Seat price must be >= 0', 400, 'VALIDATION_ERROR');
-    }
-    show.seatPrice = price;
+
+  if (guestPrice !== undefined || seatPrice !== undefined) {
+    show.guestPrice = parsePrice(
+      guestPrice !== undefined ? guestPrice : seatPrice,
+      show.guestPrice ?? show.seatPrice ?? 80,
+      'Guest price'
+    );
+    show.seatPrice = show.guestPrice;
+  }
+  if (ownerPrice !== undefined) {
+    show.ownerPrice = parsePrice(ownerPrice, show.ownerPrice ?? 50, 'Owner price');
   }
   if (status) show.status = status;
 
-  // totalSeats is not editable after creation (would break seat layout)
   if (req.body.totalSeats !== undefined && Number(req.body.totalSeats) !== show.totalSeats) {
     throw new AppError(
       'Total seats cannot be changed after show creation',
@@ -197,7 +232,7 @@ const updateShow = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: 'Show updated successfully',
-    data: { ...show.toObject(), seats },
+    data: { ...withResolvedPrices(show.toObject()), seats },
   });
 });
 

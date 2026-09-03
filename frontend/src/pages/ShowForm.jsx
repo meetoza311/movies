@@ -14,7 +14,8 @@ const empty = {
   startTime: '19:30',
   endTime: '22:00',
   totalSeats: 100,
-  seatPrice: '',
+  ownerPrice: 50,
+  guestPrice: 80,
   status: 'scheduled',
 };
 
@@ -49,13 +50,12 @@ export default function ShowForm() {
         startTime: s.startTime,
         endTime: s.endTime,
         totalSeats: s.totalSeats,
-        seatPrice: s.seatPrice,
+        ownerPrice: s.ownerPrice ?? 50,
+        guestPrice: s.guestPrice ?? s.seatPrice ?? 80,
         status: s.status,
       });
     }
   }, [showQuery.data]);
-
-  const selectedMovie = (moviesQuery.data?.data || []).find((m) => m._id === form.movieId);
 
   const mutation = useMutation({
     mutationFn: (payload) => (isEdit ? showApi.update(id, payload) : showApi.create(payload)),
@@ -79,10 +79,8 @@ export default function ShowForm() {
       startTime: form.startTime,
       endTime: form.endTime,
       status: form.status,
-      seatPrice:
-        form.seatPrice === '' || form.seatPrice === null
-          ? selectedMovie?.price ?? 0
-          : Number(form.seatPrice),
+      ownerPrice: Number(form.ownerPrice),
+      guestPrice: Number(form.guestPrice),
     };
     if (!isEdit) {
       payload.totalSeats = Number(form.totalSeats);
@@ -97,12 +95,12 @@ export default function ShowForm() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title={isEdit ? 'Edit Show' : 'Add Show'}
-        subtitle="Configure timing, capacity, and seat price"
+        subtitle="Set timing, capacity, and Guest / Owner seat prices"
       />
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-line bg-surface p-5 shadow-sm"
+        className="space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5"
       >
         <Select
           label="Movie"
@@ -128,14 +126,6 @@ export default function ShowForm() {
             required
           />
           <Input
-            label="Seat price (₹)"
-            type="number"
-            min="0"
-            value={form.seatPrice}
-            onChange={(e) => update('seatPrice', e.target.value)}
-            placeholder={selectedMovie ? `Default ${selectedMovie.price}` : '0'}
-          />
-          <Input
             label="Start time"
             type="time"
             value={form.startTime}
@@ -159,6 +149,22 @@ export default function ShowForm() {
               required
             />
           )}
+          <Input
+            label="Owner price (₹)"
+            type="number"
+            min="0"
+            value={form.ownerPrice}
+            onChange={(e) => update('ownerPrice', e.target.value)}
+            required
+          />
+          <Input
+            label="Guest price (₹)"
+            type="number"
+            min="0"
+            value={form.guestPrice}
+            onChange={(e) => update('guestPrice', e.target.value)}
+            required
+          />
           <Select
             label="Status"
             value={form.status}
@@ -170,13 +176,17 @@ export default function ShowForm() {
           </Select>
         </div>
 
+        <p className="rounded-xl bg-paper px-3 py-2 text-xs text-muted">
+          Default prices: Owner ₹50 · Guest ₹80. Any seat can be either type — no seat limits.
+        </p>
+
         {isEdit && (
           <p className="text-xs text-muted">
             Total seats cannot be changed after creation ({form.totalSeats} seats).
           </p>
         )}
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>
             Cancel
           </Button>

@@ -26,11 +26,12 @@ export default function ShowCard({ show, onEdit, onDelete }) {
         <Badge tone={show.status}>{showStatusLabel(show.status)}</Badge>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:mt-4 sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:mt-4 sm:grid-cols-5">
         <Stat label="Total" value={total} tone="bg-paper" />
         <Stat label="Available" value={available} tone="bg-success/10 text-success" />
         <Stat label="Filled" value={booked} tone="bg-teal/10 text-teal" />
-        <Stat label="Price" value={formatCurrency(show.seatPrice)} tone="bg-gold-soft text-warn" />
+        <Stat label="Owner" value={formatCurrency(show.ownerPrice ?? 50)} tone="bg-gold-soft text-warn" />
+        <Stat label="Guest" value={formatCurrency(show.guestPrice ?? show.seatPrice ?? 80)} tone="bg-sky/10 text-sky" />
       </div>
 
       <div className="mt-3">

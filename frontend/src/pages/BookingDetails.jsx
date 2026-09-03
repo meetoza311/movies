@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -8,10 +8,15 @@ import SeatMap from '../components/seats/SeatMap';
 import TicketView from '../components/bookings/TicketView';
 import { PageHeader, Skeleton, ErrorState } from '../components/common/States';
 import { Button } from '../components/common/Button';
-import { Input } from '../components/common/Input';
+import { Input, Select } from '../components/common/Input';
 import { Badge } from '../components/common/Badge';
 import { ConfirmDialog } from '../components/common/Modal';
 import { formatCurrency, formatDate, formatTime } from '../utils/format';
+
+function seatLabel(s) {
+  const cat = String(s.category || 'GUEST').toUpperCase();
+  return `${s.seatNumber} (${cat === 'OWNER' ? 'Owner' : 'Guest'})`;
+}
 
 export default function BookingDetails() {
   const { id } = useParams();
@@ -21,6 +26,7 @@ export default function BookingDetails() {
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [seatCategory, setSeatCategory] = useState('GUEST');
   const [showTicket, setShowTicket] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -36,7 +42,7 @@ export default function BookingDetails() {
   const seatsQuery = useQuery({
     queryKey: ['seats', showId],
     queryFn: () => showApi.seats(showId),
-    enabled: Boolean(showId && editing),
+    enabled: Boolean(showId),
   });
 
   useEffect(() => {
@@ -44,7 +50,10 @@ export default function BookingDetails() {
       setCustomerName(booking.customerName);
       setMobileNumber(booking.mobileNumber);
       setSelectedSeats(
-        (booking.seats || []).map((s) => String(s.seatNumber).toUpperCase().trim())
+        (booking.seats || []).map((s) => ({
+          seatNumber: String(s.seatNumber).toUpperCase().trim(),
+          category: String(s.category || 'GUEST').toUpperCase(),
+        }))
       );
     }
   }, [booking]);
@@ -68,6 +77,7 @@ export default function BookingDetails() {
       setCancelOpen(false);
       qc.invalidateQueries({ queryKey: ['booking', id] });
       qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['seats', showId] });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -81,42 +91,62 @@ export default function BookingDetails() {
     onError: (err) => toast.error(err.message),
   });
 
+  const show = booking?.showId;
+  const prices = useMemo(() => {
+    const guest = Number(
+      booking?.guestPrice ?? show?.guestPrice ?? show?.seatPrice ?? booking?.seatPrice ?? 80
+    );
+    const owner = Number(booking?.ownerPrice ?? show?.ownerPrice ?? 50);
+    return { guestPrice: guest, ownerPrice: owner };
+  }, [booking, show]);
+
+  const liveTotal = useMemo(
+    () =>
+      selectedSeats.reduce(
+        (sum, s) =>
+          sum + (s.category === 'OWNER' ? prices.ownerPrice : prices.guestPrice),
+        0
+      ),
+    [selectedSeats, prices]
+  );
+
+  const mySeatNumbers = useMemo(
+    () => (booking?.seats || []).map((s) => String(s.seatNumber).toUpperCase().trim()),
+    [booking]
+  );
+
   if (isLoading) return <Skeleton className="h-96" />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
   const movie = booking.movieId;
-  const show = booking.showId;
 
   function toggleSeat(seatNumber) {
     const next = String(seatNumber).toUpperCase().trim();
-    setSelectedSeats((prev) =>
-      prev.includes(next)
-        ? prev.filter((s) => s !== next)
-        : [...prev, next]
-    );
+    setSelectedSeats((prev) => {
+      const exists = prev.find((s) => s.seatNumber === next);
+      if (exists) return prev.filter((s) => s.seatNumber !== next);
+      return [...prev, { seatNumber: next, category: seatCategory }];
+    });
   }
 
-  // When editing, treat current booking seats as selectable even if BOOKED
   const editableSeats = (seatsQuery.data?.data?.seats || []).map((seat) => {
     const seatNumber = String(seat.seatNumber).toUpperCase().trim();
-    if (
-      seat.status === 'BOOKED' &&
-      selectedSeats.includes(seatNumber) &&
-      String(seat.bookingId) === String(booking._id)
-    ) {
-      return { ...seat, seatNumber, status: 'AVAILABLE' };
-    }
-    if (
-      seat.status === 'BOOKED' &&
-      (booking.seats || []).some(
-        (s) => String(s.seatNumber).toUpperCase().trim() === seatNumber
-      ) &&
-      String(seat.bookingId) === String(booking._id)
-    ) {
-      return { ...seat, seatNumber, status: 'AVAILABLE' };
+    const isMine =
+      String(seat.bookingId) === String(booking._id) ||
+      selectedSeats.some((s) => s.seatNumber === seatNumber);
+
+    if (seat.status === 'BOOKED' && isMine) {
+      return { ...seat, seatNumber, status: 'AVAILABLE', category: undefined };
     }
     return { ...seat, seatNumber };
   });
+
+  const guestSeats = (booking.seats || []).filter(
+    (s) => String(s.category || 'GUEST').toUpperCase() !== 'OWNER'
+  );
+  const ownerSeats = (booking.seats || []).filter(
+    (s) => String(s.category || '').toUpperCase() === 'OWNER'
+  );
 
   return (
     <div>
@@ -126,7 +156,7 @@ export default function BookingDetails() {
         actions={
           <>
             <Button variant="outline" onClick={() => setShowTicket(true)}>
-              Print Ticket
+              Print / Share
             </Button>
             {booking.bookingStatus === 'CONFIRMED' && !editing && (
               <Button variant="secondary" onClick={() => setEditing(true)}>
@@ -138,8 +168,8 @@ export default function BookingDetails() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-4 rounded-2xl border border-line bg-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between">
+        <div className="space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+          <div className="flex items-center justify-between gap-2">
             <h2 className="font-display text-xl font-bold">
               {typeof movie === 'object' ? movie.title : 'Movie'}
             </h2>
@@ -155,11 +185,19 @@ export default function BookingDetails() {
               <Row label="Mobile" value={booking.mobileNumber} />
               <Row
                 label="Seats"
-                value={(booking.seats || []).map((s) => s.seatNumber).join(', ')}
+                value={(booking.seats || []).map(seatLabel).join(', ')}
               />
               <Row
-                label="Price"
-                value={`${formatCurrency(booking.seatPrice)} × ${booking.numberOfSeats}`}
+                label="Guest"
+                value={`${guestSeats.length} × ${formatCurrency(
+                  booking.guestPrice ?? prices.guestPrice
+                )}`}
+              />
+              <Row
+                label="Owner"
+                value={`${ownerSeats.length} × ${formatCurrency(
+                  booking.ownerPrice ?? prices.ownerPrice
+                )}`}
               />
               <Row label="Total" value={formatCurrency(booking.totalAmount)} />
             </div>
@@ -177,22 +215,29 @@ export default function BookingDetails() {
                   onChange={(e) => setMobileNumber(e.target.value)}
                 />
               </div>
+              <Select
+                label="Assign seats as"
+                value={seatCategory}
+                onChange={(e) => setSeatCategory(e.target.value)}
+              >
+                <option value="GUEST">Guest — {formatCurrency(prices.guestPrice)}</option>
+                <option value="OWNER">Owner — {formatCurrency(prices.ownerPrice)}</option>
+              </Select>
               {seatsQuery.isLoading ? (
                 <Skeleton className="h-48" />
               ) : (
                 <SeatMap
                   seats={editableSeats}
                   selected={selectedSeats}
+                  activeCategory={seatCategory}
                   onToggle={toggleSeat}
+                  mode="book"
                 />
               )}
               <p className="text-sm">
-                Live total:{' '}
-                <strong>
-                  {formatCurrency((show?.seatPrice || booking.seatPrice) * selectedSeats.length)}
-                </strong>
+                Live total: <strong>{formatCurrency(liveTotal)}</strong>
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setEditing(false)}>
                   Cancel edit
                 </Button>
@@ -211,10 +256,33 @@ export default function BookingDetails() {
               </div>
             </div>
           )}
+
+          {!editing && (
+            <div className="pt-2">
+              <h3 className="mb-2 font-display text-lg font-bold">Show seats</h3>
+              <p className="mb-3 text-xs text-muted">
+                All seats for this show — your booking is highlighted.
+              </p>
+              {seatsQuery.isLoading ? (
+                <Skeleton className="h-48" />
+              ) : (
+                <SeatMap
+                  seats={seatsQuery.data?.data?.seats || []}
+                  readonly
+                  selected={[]}
+                  highlightSeats={mySeatNumbers}
+                  mode="view"
+                />
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-line bg-surface p-5 shadow-sm">
+        <div className="space-y-3 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
           <h3 className="font-display text-lg font-bold">Actions</h3>
+          <Button className="w-full" onClick={() => setShowTicket(true)}>
+            Download / Share PDF
+          </Button>
           <Link to={`/shows/${showId}`}>
             <Button variant="outline" className="w-full">
               Open show
@@ -261,8 +329,8 @@ export default function BookingDetails() {
 function Row({ label, value }) {
   return (
     <div className="flex justify-between gap-4 border-b border-dashed border-line py-2">
-      <span className="text-muted">{label}</span>
-      <span className="text-right font-semibold">{value}</span>
+      <span className="shrink-0 text-muted">{label}</span>
+      <span className="break-words text-right font-semibold">{value}</span>
     </div>
   );
 }

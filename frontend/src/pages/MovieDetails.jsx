@@ -105,7 +105,8 @@ export default function MovieDetails() {
                           {show.seats?.available ?? '—'} · Filled: {show.seats?.booked ?? '—'}
                         </p>
                         <p className="mt-1 font-semibold text-teal">
-                          {formatCurrency(show.seatPrice)}
+                          Guest {formatCurrency(show.guestPrice ?? show.seatPrice ?? 80)} · Owner{' '}
+                          {formatCurrency(show.ownerPrice ?? 50)}
                         </p>
                       </Link>
                     ))}

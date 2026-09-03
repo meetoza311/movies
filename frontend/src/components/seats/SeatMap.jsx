@@ -1,12 +1,21 @@
 import { useMemo } from 'react';
 import { cn } from '../../utils/format';
 
-export function SeatLegend() {
+export function SeatLegend({ mode = 'book' }) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] font-semibold text-muted sm:gap-x-4 sm:text-xs">
       <LegendSwatch className="border-line bg-surface" label="Available" />
-      <LegendSwatch className="border-teal bg-teal text-white" label="Selected" />
-      <LegendSwatch className="border-ink/20 bg-ink/15 text-ink/40" label="Booked" />
+      {mode === 'book' && (
+        <>
+          <LegendSwatch className="border-sky bg-sky text-white" label="Selected guest" />
+          <LegendSwatch className="border-gold bg-gold text-ink" label="Selected owner" />
+        </>
+      )}
+      {mode === 'view' && (
+        <LegendSwatch className="border-teal ring-2 ring-teal bg-teal text-white" label="My seats" />
+      )}
+      <LegendSwatch className="border-sky/40 bg-sky/25 text-sky" label="Guest booked" />
+      <LegendSwatch className="border-gold/50 bg-gold/30 text-warn" label="Owner booked" />
     </div>
   );
 }
@@ -23,15 +32,38 @@ function LegendSwatch({ className, label }) {
   );
 }
 
+/**
+ * selected: string[] OR [{ seatNumber, category }]
+ * highlightSeats: string[] — my booking seats (view mode)
+ * activeCategory: GUEST | OWNER — color for newly selected seats
+ */
 export default function SeatMap({
   seats = [],
   selected = [],
+  highlightSeats = [],
+  activeCategory = 'GUEST',
   onToggle,
   readonly = false,
+  mode = 'book',
 }) {
-  const selectedSet = useMemo(
-    () => new Set(selected.map((s) => String(s).toUpperCase().trim())),
-    [selected]
+  const selectedMap = useMemo(() => {
+    const map = new Map();
+    selected.forEach((s) => {
+      if (typeof s === 'string') {
+        map.set(String(s).toUpperCase().trim(), activeCategory);
+      } else if (s?.seatNumber) {
+        map.set(
+          String(s.seatNumber).toUpperCase().trim(),
+          String(s.category || activeCategory).toUpperCase()
+        );
+      }
+    });
+    return map;
+  }, [selected, activeCategory]);
+
+  const highlightSet = useMemo(
+    () => new Set(highlightSeats.map((s) => String(s).toUpperCase().trim())),
+    [highlightSeats]
   );
 
   const { rowKeys, rows, maxCols } = useMemo(() => {
@@ -62,7 +94,6 @@ export default function SeatMap({
     onToggle(String(seatNumber).toUpperCase().trim());
   }
 
-  // Keep labels readable when many columns squeeze seats
   const seatLabelClass =
     maxCols >= 14
       ? 'text-[8px] sm:text-[10px]'
@@ -78,7 +109,7 @@ export default function SeatMap({
         </div>
       </div>
 
-      <SeatLegend />
+      <SeatLegend mode={mode} />
 
       <div className="w-full space-y-1 sm:space-y-1.5">
         {rowKeys.map((row) => {
@@ -106,13 +137,16 @@ export default function SeatMap({
 
                   const seatNumber = String(seat.seatNumber).toUpperCase().trim();
                   const isBooked = seat.status === 'BOOKED';
-                  const isSelected = selectedSet.has(seatNumber);
+                  const bookedCategory = String(seat.category || 'GUEST').toUpperCase();
+                  const selectedCategory = selectedMap.get(seatNumber);
+                  const isSelected = selectedMap.has(seatNumber);
+                  const isMine = highlightSet.has(seatNumber);
                   const canSelect = !readonly && !isBooked && Boolean(onToggle);
-                  const label = isBooked
-                    ? `${seatNumber} booked`
-                    : isSelected
-                      ? `${seatNumber} selected`
-                      : `${seatNumber} available`;
+
+                  let label = `${seatNumber} available`;
+                  if (isBooked && isMine) label = `${seatNumber} my seat (${bookedCategory})`;
+                  else if (isBooked) label = `${seatNumber} booked ${bookedCategory}`;
+                  else if (isSelected) label = `${seatNumber} selected ${selectedCategory}`;
 
                   return (
                     <button
@@ -120,23 +154,46 @@ export default function SeatMap({
                       type="button"
                       title={label}
                       aria-label={label}
-                      aria-pressed={isSelected}
-                      disabled={!canSelect}
+                      aria-pressed={isSelected || isMine}
+                      disabled={!canSelect && !readonly}
                       onClick={() => handleToggle(seatNumber)}
                       className={cn(
                         'aspect-square w-full touch-manipulation select-none rounded-[4px] border font-bold transition active:scale-90 sm:rounded-md',
                         'flex items-center justify-center',
                         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal',
                         seatLabelClass,
+                        // My seats (view booking) — strongest highlight
                         isBooked &&
-                          'cursor-not-allowed border-ink/10 bg-ink/10 text-ink/35 line-through',
+                          isMine &&
+                          bookedCategory === 'OWNER' &&
+                          'cursor-default border-gold bg-gold text-ink ring-2 ring-teal ring-offset-1',
+                        isBooked &&
+                          isMine &&
+                          bookedCategory !== 'OWNER' &&
+                          'cursor-default border-teal bg-teal text-white ring-2 ring-ink/30 ring-offset-1',
+                        // Other booked
+                        isBooked &&
+                          !isMine &&
+                          bookedCategory === 'OWNER' &&
+                          'cursor-default border-gold/40 bg-gold/30 text-warn',
+                        isBooked &&
+                          !isMine &&
+                          bookedCategory !== 'OWNER' &&
+                          'cursor-default border-sky/40 bg-sky/25 text-sky',
+                        // Selected while booking
                         !isBooked &&
                           isSelected &&
-                          'border-teal bg-teal text-white shadow-sm',
+                          selectedCategory === 'OWNER' &&
+                          'border-gold bg-gold text-ink shadow-sm',
+                        !isBooked &&
+                          isSelected &&
+                          selectedCategory !== 'OWNER' &&
+                          'border-sky bg-sky text-white shadow-sm',
+                        // Available
                         !isBooked &&
                           !isSelected &&
                           canSelect &&
-                          'border-line bg-surface text-ink active:border-teal active:bg-teal/10',
+                          'border-line bg-surface text-ink active:border-sky active:bg-sky/10',
                         !isBooked &&
                           !isSelected &&
                           !canSelect &&
