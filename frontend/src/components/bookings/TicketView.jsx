@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Download, MessageCircle, Printer, Share2, X } from 'lucide-react';
 import { formatCurrency, formatDate, formatTime } from '../../utils/format';
@@ -6,7 +6,6 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 
 export default function TicketView({ booking, onClose }) {
-  const ticketRef = useRef(null);
   const [busy, setBusy] = useState(null);
 
   if (!booking) return null;
@@ -29,22 +28,7 @@ export default function TicketView({ booking, onClose }) {
   ].join('\n');
 
   async function buildPdfBlob() {
-    const node = ticketRef.current;
-    if (!node) throw new Error('Ticket not ready');
-
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-      import('html2canvas'),
-      import('jspdf'),
-    ]);
-
-    const canvas = await html2canvas(node, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-    });
-
-    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = await import('jspdf');
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -52,17 +36,88 @@ export default function TicketView({ booking, onClose }) {
     });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 12;
-    const maxWidth = pageWidth - margin * 2;
-    const maxHeight = pageHeight - margin * 2;
-    const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
-    const renderWidth = canvas.width * ratio;
-    const renderHeight = canvas.height * ratio;
-    const x = (pageWidth - renderWidth) / 2;
-    const y = margin;
+    const margin = 18;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 22;
 
-    pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
+    // Header bar (hex only — no oklab/css parsing)
+    pdf.setFillColor(225, 29, 72);
+    pdf.rect(0, 0, pageWidth, 36, 'F');
+    pdf.setFillColor(26, 16, 64);
+    pdf.rect(0, 28, pageWidth, 8, 'F');
+
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(22);
+    pdf.text('Savan Sentosa', pageWidth / 2, 16, { align: 'center' });
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    pdf.text('ADMISSION TICKET', pageWidth / 2, 24, { align: 'center' });
+
+    y = 48;
+    pdf.setTextColor(26, 16, 64);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.text(String(movieTitle || 'Movie'), margin, y);
+    y += 8;
+
+    pdf.setDrawColor(254, 215, 170);
+    pdf.setLineWidth(0.3);
+
+    const rows = [
+      ['Date', formatDate(show?.showDate)],
+      ['Time', formatTime(show?.startTime)],
+      ['Customer', booking.customerName || '—'],
+      ['Mobile', booking.mobileNumber || '—'],
+      ['Seats', seats || '—'],
+      [
+        'Price',
+        `${formatCurrency(booking.seatPrice)} x ${booking.numberOfSeats || 0}`,
+      ],
+      ['Booking ID', booking.bookingNumber || '—'],
+      ['Status', booking.bookingStatus || '—'],
+    ];
+
+    pdf.setFontSize(11);
+    rows.forEach(([label, value]) => {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(120, 113, 108);
+      pdf.text(label, margin, y);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(26, 16, 64);
+      const valueLines = pdf.splitTextToSize(String(value ?? '—'), contentWidth * 0.55);
+      pdf.text(valueLines, pageWidth - margin, y, { align: 'right' });
+
+      const blockHeight = Math.max(7, valueLines.length * 5 + 2);
+      y += blockHeight;
+      pdf.setDrawColor(254, 215, 170);
+      pdf.line(margin, y - 3, pageWidth - margin, y - 3);
+    });
+
+    y += 4;
+    pdf.setFillColor(255, 247, 237);
+    pdf.roundedRect(margin, y, contentWidth, 22, 3, 3, 'F');
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(120, 113, 108);
+    pdf.text('TOTAL', margin + 4, y + 8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(18);
+    pdf.setTextColor(225, 29, 72);
+    pdf.text(formatCurrency(booking.totalAmount), margin + 4, y + 17);
+
+    y += 32;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    pdf.setTextColor(120, 113, 108);
+    pdf.text('Thank you for choosing Savan Sentosa.', pageWidth / 2, y, {
+      align: 'center',
+    });
+    pdf.text('Please arrive 15 minutes before show time.', pageWidth / 2, y + 5, {
+      align: 'center',
+    });
+
     return pdf.output('blob');
   }
 
@@ -136,7 +191,6 @@ export default function TicketView({ booking, onClose }) {
       const blob = await buildPdfBlob();
       const file = new File([blob], fileName, { type: 'application/pdf' });
 
-      // Mobile: system share sheet usually lists WhatsApp and can attach the PDF
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -146,10 +200,9 @@ export default function TicketView({ booking, onClose }) {
         return;
       }
 
-      // Desktop / unsupported file share: download PDF + open WhatsApp with text
       downloadBlob(blob, fileName);
       const url = `https://wa.me/?text=${encodeURIComponent(
-        `${shareText}\n\n📎 Ticket PDF downloaded — attach ${fileName} in WhatsApp.`
+        `${shareText}\n\nTicket PDF downloaded — attach ${fileName} in WhatsApp.`
       )}`;
       window.open(url, '_blank', 'noopener,noreferrer');
       toast.success('PDF downloaded — attach it in WhatsApp');
@@ -177,7 +230,7 @@ export default function TicketView({ booking, onClose }) {
         </div>
 
         <div className="overflow-y-auto">
-          <div ref={ticketRef} className="ticket-print bg-white">
+          <div className="ticket-print bg-white">
             <div className="bg-gradient-to-r from-teal to-ink px-6 py-5 text-center text-white">
               <p className="text-2xl font-extrabold tracking-wide">
                 Savan <span className="text-gold">Sentosa</span>
@@ -253,9 +306,6 @@ export default function TicketView({ booking, onClose }) {
           <Button variant="outline" className="w-full" onClick={onClose} disabled={Boolean(busy)}>
             Close
           </Button>
-          <p className="text-center text-[11px] text-muted">
-            PDF is created on this device — nothing is uploaded to the server.
-          </p>
         </div>
       </div>
     </div>
