@@ -5,16 +5,25 @@ const env = require('../config/env');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 
+/**
+ * Creates admin if missing, or updates name/password from .env.
+ * Change password easily: update ADMIN_PASSWORD in .env (or Render), then run:
+ *   npm run seed:admin
+ */
 async function seedAdmin() {
   await connectDB();
 
   const email = env.adminEmail.toLowerCase().trim();
-  const existing = await Admin.findOne({ email });
+  const passwordHash = await Admin.hashPassword(env.adminPassword);
+
+  const existing = await Admin.findOne({ email }).select('+passwordHash');
 
   if (existing) {
-    logger.info(`Admin already exists: ${email}`);
+    existing.name = env.adminName;
+    existing.passwordHash = passwordHash;
+    await existing.save();
+    logger.info(`Admin updated from env: ${email}`);
   } else {
-    const passwordHash = await Admin.hashPassword(env.adminPassword);
     await Admin.create({
       name: env.adminName,
       email,

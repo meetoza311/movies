@@ -60,4 +60,37 @@ const me = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { login, logout, me };
+const changePassword = asyncHandler(async (req, res) => {
+  const currentPassword = String(req.body.currentPassword || '');
+  const newPassword = String(req.body.newPassword || '');
+
+  if (!currentPassword || !newPassword) {
+    throw new AppError(
+      'Current password and new password are required',
+      400,
+      'VALIDATION_ERROR'
+    );
+  }
+
+  if (newPassword.length < 6) {
+    throw new AppError('New password must be at least 6 characters', 400, 'VALIDATION_ERROR');
+  }
+
+  const admin = await Admin.findById(req.admin._id).select('+passwordHash');
+  if (!admin || !(await admin.comparePassword(currentPassword))) {
+    throw new AppError('Current password is incorrect', 401, 'INVALID_CREDENTIALS');
+  }
+
+  admin.passwordHash = await Admin.hashPassword(newPassword);
+  await admin.save();
+
+  logger.info('Admin password changed', { email: admin.email });
+
+  res.json({
+    success: true,
+    message: 'Password updated successfully',
+    data: null,
+  });
+});
+
+module.exports = { login, logout, me, changePassword };
