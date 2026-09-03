@@ -16,9 +16,10 @@ const userRoutes = require('./routes/userRoutes');
 const app = express();
 
 app.use(helmet());
+// Allow any frontend origin (localhost, Vercel, Render static, etc.)
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin: true,
     credentials: true,
   })
 );
