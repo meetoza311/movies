@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { formatCurrency, formatDate, formatTime, showStatusLabel } from '../../utils/format';
@@ -12,20 +13,20 @@ export default function ShowCard({ show, onEdit, onDelete }) {
   const fill = total > 0 ? Math.round((booked / total) * 100) : 0;
 
   return (
-    <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm transition hover:shadow-md">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <article className="rounded-2xl border border-line bg-surface p-3.5 shadow-sm transition sm:p-4 sm:hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-lg font-bold text-ink">
+          <p className="truncate text-base font-bold text-ink sm:text-lg">
             {typeof movie === 'object' ? movie.title : 'Movie'}
           </p>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-xs text-muted sm:text-sm">
             {formatDate(show.showDate)} · {formatTime(show.startTime)} – {formatTime(show.endTime)}
           </p>
         </div>
         <Badge tone={show.status}>{showStatusLabel(show.status)}</Badge>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:mt-4 sm:grid-cols-4">
         <Stat label="Total" value={total} tone="bg-paper" />
         <Stat label="Available" value={available} tone="bg-success/10 text-success" />
         <Stat label="Filled" value={booked} tone="bg-teal/10 text-teal" />
@@ -45,15 +46,27 @@ export default function ShowCard({ show, onEdit, onDelete }) {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Link to={`/shows/${show._id}`}>
-          <Button size="sm">Manage Seats</Button>
+      <div className="mt-3 flex items-center gap-2 sm:mt-4">
+        <Link to={`/shows/${show._id}`} className="min-w-0 flex-1">
+          <Button size="sm" className="w-full">
+            Manage seats
+          </Button>
         </Link>
-        <Button size="sm" variant="outline" onClick={() => onEdit?.(show)}>
-          Edit
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={() => onEdit?.(show)}
+          aria-label="Edit show"
+        >
+          <Pencil size={15} />
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => onDelete?.(show)}>
-          Delete
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => onDelete?.(show)}
+          aria-label="Delete show"
+        >
+          <Trash2 size={15} />
         </Button>
       </div>
     </article>
@@ -62,9 +75,11 @@ export default function ShowCard({ show, onEdit, onDelete }) {
 
 function Stat({ label, value, tone }) {
   return (
-    <div className={`rounded-xl px-3 py-2 ${tone}`}>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-0.5 font-semibold text-ink">{value}</p>
+    <div className={`rounded-xl px-2.5 py-2 sm:px-3 ${tone}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted sm:text-[11px]">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-ink">{value}</p>
     </div>
   );
 }

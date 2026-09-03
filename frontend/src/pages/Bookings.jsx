@@ -75,7 +75,7 @@ export default function Bookings() {
         }
       />
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm md:grid-cols-4">
+      <div className="mb-4 space-y-3 rounded-2xl border border-line bg-surface p-3 shadow-sm sm:mb-5 sm:p-4 md:grid md:grid-cols-4 md:gap-3 md:space-y-0">
         <Input
           label="Search"
           placeholder="Booking # / name / mobile"
@@ -85,18 +85,29 @@ export default function Bookings() {
             setSearch(e.target.value);
           }}
         />
-        <Select
-          label="Status"
-          value={status}
-          onChange={(e) => {
-            setPage(1);
-            setStatus(e.target.value);
-          }}
-        >
-          <option value="">All</option>
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="CANCELLED">Cancelled</option>
-        </Select>
+        <div className="grid grid-cols-2 gap-3 md:contents">
+          <Select
+            label="Status"
+            value={status}
+            onChange={(e) => {
+              setPage(1);
+              setStatus(e.target.value);
+            }}
+          >
+            <option value="">All</option>
+            <option value="CONFIRMED">Confirmed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </Select>
+          <Input
+            label="Date"
+            type="date"
+            value={date}
+            onChange={(e) => {
+              setPage(1);
+              setDate(e.target.value);
+            }}
+          />
+        </div>
         <Select
           label="Movie"
           value={movieId}
@@ -112,15 +123,6 @@ export default function Bookings() {
             </option>
           ))}
         </Select>
-        <Input
-          label="Date"
-          type="date"
-          value={date}
-          onChange={(e) => {
-            setPage(1);
-            setDate(e.target.value);
-          }}
-        />
       </div>
 
       {isLoading && <Skeleton className="h-64" />}
@@ -196,24 +198,27 @@ export default function Bookings() {
 
       <div className="space-y-3 md:hidden">
         {(data?.data || []).map((b) => (
-          <div key={b._id} className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+          <div key={b._id} className="rounded-2xl border border-line bg-surface p-3.5 shadow-sm">
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold">{b.bookingNumber}</p>
-                <p className="text-sm text-muted">{b.movieId?.title}</p>
+                <p className="truncate text-sm text-muted">{b.movieId?.title}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {formatDate(b.showId?.showDate)} · {formatTime(b.showId?.startTime)}
+                </p>
               </div>
               <Badge tone={b.bookingStatus}>{b.bookingStatus}</Badge>
             </div>
             <p className="mt-2 text-sm">
               {b.customerName} · {b.mobileNumber}
             </p>
-            <p className="text-sm text-muted">
+            <p className="break-words text-sm text-muted">
               {(b.seats || []).map((s) => s.seatNumber).join(', ')}
             </p>
-            <p className="mt-1 font-bold">{formatCurrency(b.totalAmount)}</p>
-            <div className="mt-3 flex gap-2">
-              <Link to={`/bookings/${b._id}`}>
-                <Button size="sm" variant="outline">
+            <p className="mt-1 font-bold text-teal">{formatCurrency(b.totalAmount)}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link to={`/bookings/${b._id}`} className="flex-1">
+                <Button size="sm" variant="outline" className="w-full">
                   View
                 </Button>
               </Link>
@@ -222,6 +227,9 @@ export default function Bookings() {
                   Cancel
                 </Button>
               )}
+              <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(b)}>
+                Delete
+              </Button>
             </div>
           </div>
         ))}

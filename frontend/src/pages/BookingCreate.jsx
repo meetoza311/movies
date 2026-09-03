@@ -313,22 +313,32 @@ export default function BookingCreate() {
           </div>
         )}
 
-        <div className={`mt-5 flex flex-wrap justify-between gap-2 sm:mt-6 ${step === 3 ? 'pb-1' : 'pb-2'}`}>
+        <div
+          className={`mt-5 flex gap-2 sm:mt-6 ${
+            step === 3
+              ? 'sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-10 -mx-3 border-t border-line bg-surface/95 px-3 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none'
+              : ''
+          }`}
+        >
           <Button
             type="button"
             variant="outline"
+            className="flex-1 sm:flex-none"
             disabled={step === 0 || mutation.isPending}
             onClick={() => setStep((s) => Math.max(0, s - 1))}
           >
             Back
           </Button>
           {step < STEPS.length - 1 ? (
-            <Button type="button" onClick={handleNext} className="min-w-28">
-              {step === 3 ? `Continue${selectedSeats.length ? ` (${selectedSeats.length})` : ''}` : 'Continue'}
+            <Button type="button" onClick={handleNext} className="min-w-28 flex-1 sm:flex-none">
+              {step === 3
+                ? `Continue${selectedSeats.length ? ` (${selectedSeats.length})` : ''}`
+                : 'Continue'}
             </Button>
           ) : (
             <Button
               type="button"
+              className="flex-1 sm:flex-none"
               loading={mutation.isPending}
               disabled={mutation.isPending}
               onClick={() => mutation.mutate()}
@@ -354,9 +364,9 @@ export default function BookingCreate() {
 
 function SummaryRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between border-b border-dashed border-line py-2">
-      <span className="text-muted">{label}</span>
-      <span className="font-semibold text-ink">{value || '—'}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-dashed border-line py-2">
+      <span className="shrink-0 text-muted">{label}</span>
+      <span className="break-words text-right font-semibold text-ink">{value || '—'}</span>
     </div>
   );
 }

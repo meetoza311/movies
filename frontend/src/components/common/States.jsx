@@ -38,15 +38,17 @@ export function PageHeader({ title, subtitle, actions, className }) {
   return (
     <div
       className={cn(
-        'mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between',
+        'mb-4 flex flex-col gap-2.5 sm:mb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-3',
         className
       )}
     >
-      <div>
-        <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+      <div className="min-w-0">
+        <h1 className="text-xl font-extrabold tracking-tight text-ink sm:text-3xl">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-xs text-muted sm:mt-1 sm:text-sm">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{actions}</div>
+      )}
     </div>
   );
 }

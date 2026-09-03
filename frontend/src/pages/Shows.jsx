@@ -68,7 +68,7 @@ export default function Shows() {
         }
       />
 
-      <div className="mb-5 grid gap-3 rounded-2xl border border-line bg-surface p-4 shadow-sm md:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-line bg-surface p-3 shadow-sm sm:mb-5 sm:grid-cols-2 sm:p-4 md:grid-cols-3">
         <Select
           label="Movie"
           value={movieId}

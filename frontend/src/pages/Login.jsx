@@ -32,7 +32,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center px-4 py-10">
+    <div className="relative flex min-h-dvh items-center justify-center px-4 py-10">
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{

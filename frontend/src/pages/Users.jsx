@@ -141,10 +141,10 @@ export default function Users() {
         subtitle="Add admins who can access the full cinema desk"
         actions={
           <>
-            <Button variant="outline" onClick={() => setMyPasswordOpen(true)}>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setMyPasswordOpen(true)}>
               <KeyRound size={16} /> My password
             </Button>
-            <Button onClick={openCreate}>
+            <Button className="flex-1 sm:flex-none" onClick={openCreate}>
               <Plus size={16} /> Add user
             </Button>
           </>

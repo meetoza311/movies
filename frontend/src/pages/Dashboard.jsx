@@ -55,9 +55,9 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-28" />
+          <Skeleton key={i} className="h-24 sm:h-28" />
         ))}
       </div>
     );
@@ -92,14 +92,18 @@ export default function Dashboard() {
     <div>
       <PageHeader title="Dashboard" subtitle="Savan Sentosa — live cinema overview" />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         {cardItems.map((card, i) => (
           <div
             key={card.label}
-            className={`rounded-2xl border p-4 shadow-sm ${CARD_COLORS[i % CARD_COLORS.length]}`}
+            className={`rounded-2xl border p-3 shadow-sm sm:p-4 ${CARD_COLORS[i % CARD_COLORS.length]}`}
           >
-            <p className="text-xs font-bold uppercase tracking-wide text-muted">{card.label}</p>
-            <p className="mt-2 text-2xl font-extrabold text-ink sm:text-3xl">{card.value}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted sm:text-xs">
+              {card.label}
+            </p>
+            <p className="mt-1.5 text-xl font-extrabold text-ink sm:mt-2 sm:text-3xl">
+              {card.value}
+            </p>
           </div>
         ))}
       </div>

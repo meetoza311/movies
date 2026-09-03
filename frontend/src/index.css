@@ -29,10 +29,13 @@
     color: var(--color-ink);
     background: var(--color-paper);
     -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
 
   body {
     min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
     background:
       radial-gradient(900px 420px at 0% -5%, rgba(225, 29, 72, 0.12), transparent 55%),
       radial-gradient(800px 380px at 100% 0%, rgba(245, 158, 11, 0.16), transparent 50%),
@@ -42,6 +45,16 @@
 
   #root {
     min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Prevent iOS zoom on focus while keeping readable fields */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
 }
 
@@ -54,6 +67,14 @@
     background: linear-gradient(180deg, #fda4af 0%, #fecdd3 45%, #fff1f2 100%);
     border-radius: 999px 999px 8px 8px;
     box-shadow: 0 8px 24px rgba(225, 29, 72, 0.12);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pb-nav {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .card-color-1 { background: linear-gradient(135deg, #fff1f2, #ffffff); border-color: #fda4af; }

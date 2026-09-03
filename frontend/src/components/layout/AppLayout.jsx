@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Clapperboard,
@@ -16,11 +16,11 @@ import { Button } from '../common/Button';
 import { cn } from '../../utils/format';
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/movies', label: 'Movies', icon: Clapperboard },
-  { to: '/shows', label: 'Shows', icon: CalendarDays },
-  { to: '/bookings', label: 'Bookings', icon: Ticket },
-  { to: '/users', label: 'Users', icon: Users },
+  { to: '/', label: 'Home', full: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/movies', label: 'Films', full: 'Movies', icon: Clapperboard },
+  { to: '/shows', label: 'Shows', full: 'Shows', icon: CalendarDays },
+  { to: '/bookings', label: 'Tickets', full: 'Bookings', icon: Ticket },
+  { to: '/users', label: 'Users', full: 'Users', icon: Users },
 ];
 
 export default function AppLayout() {
@@ -35,25 +35,42 @@ export default function AppLayout() {
     return 'Good evening';
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   async function handleLogout() {
     await logout();
     navigate('/login');
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[250px_1fr]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[250px_1fr]">
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-[250px] bg-gradient-to-b from-ink to-ink-soft text-white shadow-xl transition-transform lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 w-[min(280px,85vw)] bg-gradient-to-b from-ink to-ink-soft text-white shadow-xl transition-transform duration-200 lg:static lg:w-auto lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex h-full flex-col">
-          <div className="border-b border-white/10 px-5 py-5">
-            <p className="text-xl font-extrabold leading-tight">
-              Savan <span className="text-gold">Sentosa</span>
-            </p>
-            <p className="mt-1 text-xs text-white/60">Cinema Admin</p>
+        <div className="flex h-full flex-col safe-bottom">
+          <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
+            <div>
+              <p className="text-xl font-extrabold leading-tight">
+                Savan <span className="text-gold">Sentosa</span>
+              </p>
+              <p className="mt-1 text-xs text-white/60">Cinema Admin</p>
+            </div>
+            <button
+              type="button"
+              className="rounded-xl border border-white/15 p-2 text-white/80 lg:hidden"
+              onClick={() => setOpen(false)}
+              aria-label="Close menu"
+            >
+              <X size={18} />
+            </button>
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -65,7 +82,7 @@ export default function AppLayout() {
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
+                    'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition',
                     isActive
                       ? 'bg-teal text-white shadow-md shadow-teal/30'
                       : 'text-white/75 hover:bg-white/10 hover:text-white'
@@ -73,7 +90,7 @@ export default function AppLayout() {
                 }
               >
                 <item.icon size={18} />
-                {item.label}
+                {item.full}
               </NavLink>
             ))}
 
@@ -84,21 +101,21 @@ export default function AppLayout() {
               <NavLink
                 to="/movies/new"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10"
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-white/75 hover:bg-white/10"
               >
                 <Plus size={18} /> Add Movie
               </NavLink>
               <NavLink
                 to="/shows/new"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10"
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-white/75 hover:bg-white/10"
               >
                 <Plus size={18} /> Add Show
               </NavLink>
               <NavLink
                 to="/bookings/new"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white/75 hover:bg-white/10"
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-white/75 hover:bg-white/10"
               >
                 <Plus size={18} /> Create Booking
               </NavLink>
@@ -128,42 +145,43 @@ export default function AppLayout() {
         />
       )}
 
-      <div className="min-w-0 pb-24 lg:pb-0">
-        <header className="sticky top-0 z-20 border-b border-line/70 bg-paper/90 px-4 py-3 backdrop-blur md:px-6">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+      <div className="min-w-0 pb-nav lg:pb-0">
+        <header className="sticky top-0 z-20 border-b border-line/70 bg-paper/90 px-3 py-2.5 backdrop-blur sm:px-4 md:px-6 md:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2.5">
               <button
                 type="button"
-                className="rounded-xl border border-line bg-surface p-2 shadow-sm lg:hidden"
+                className="shrink-0 rounded-xl border border-line bg-surface p-2.5 shadow-sm lg:hidden"
                 onClick={() => setOpen(true)}
                 aria-label="Open menu"
               >
-                {open ? <X size={18} /> : <Menu size={18} />}
+                <Menu size={18} />
               </button>
-              <div>
-                <p className="text-xs font-semibold text-muted">{greeting}</p>
-                <p className="text-base font-bold text-ink sm:text-lg">Savan Sentosa</p>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-muted sm:text-xs">{greeting}</p>
+                <p className="truncate text-base font-bold text-ink sm:text-lg">Savan Sentosa</p>
               </div>
             </div>
             <Button
               variant="gold"
               size="sm"
-              className="hidden sm:inline-flex"
+              className="shrink-0 px-2.5 sm:px-3"
               onClick={() => navigate('/bookings/new')}
+              aria-label="New booking"
             >
-              <Ticket size={16} /> New booking
+              <Ticket size={16} />
+              <span className="hidden sm:inline">New booking</span>
             </Button>
           </div>
         </header>
 
-        <main className="px-3 py-4 sm:px-4 md:px-6 lg:px-8 md:py-6">
+        <main className="px-3 py-4 sm:px-4 md:px-6 md:py-6 lg:px-8">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-surface/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-surface/95 px-1.5 pt-1.5 backdrop-blur safe-bottom lg:hidden">
+        <div className="mx-auto grid max-w-lg grid-cols-5 gap-0.5 pb-1">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -171,13 +189,13 @@ export default function AppLayout() {
               end={item.end}
               className={({ isActive }) =>
                 cn(
-                  'flex flex-col items-center gap-0.5 rounded-xl px-2 py-2 text-[11px] font-semibold',
+                  'flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold',
                   isActive ? 'bg-teal/10 text-teal' : 'text-muted'
                 )
               }
             >
               <item.icon size={18} />
-              {item.label}
+              <span className="leading-none">{item.label}</span>
             </NavLink>
           ))}
         </div>
