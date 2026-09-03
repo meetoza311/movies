@@ -7,4 +7,7 @@ export const bookingApi = {
   update: (id, payload) => api.put(`/bookings/${id}`, payload).then((r) => r.data),
   cancel: (id) => api.patch(`/bookings/${id}/cancel`).then((r) => r.data),
   remove: (id) => api.delete(`/bookings/${id}`).then((r) => r.data),
+  gateList: (showId) => api.get(`/bookings/gate/show/${showId}`).then((r) => r.data),
+  gateLookup: (payload) => api.post('/bookings/gate/lookup', payload).then((r) => r.data),
+  gateCheckIn: (payload) => api.post('/bookings/gate/check-in', payload).then((r) => r.data),
 };

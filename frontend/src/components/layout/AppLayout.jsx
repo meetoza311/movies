@@ -10,6 +10,7 @@ import {
   X,
   Plus,
   Users,
+  ScanLine,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
@@ -20,8 +21,10 @@ const nav = [
   { to: '/movies', label: 'Films', full: 'Movies', icon: Clapperboard },
   { to: '/shows', label: 'Shows', full: 'Shows', icon: CalendarDays },
   { to: '/bookings', label: 'Tickets', full: 'Bookings', icon: Ticket },
-  { to: '/users', label: 'Users', full: 'Users', icon: Users },
+  { to: '/verify', label: 'Scan', full: 'Verify / Scanner', icon: ScanLine },
 ];
+
+const sideOnly = [{ to: '/users', label: 'Users', full: 'Users', icon: Users }];
 
 export default function AppLayout() {
   const { admin, logout } = useAuth();
@@ -74,7 +77,7 @@ export default function AppLayout() {
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-            {nav.map((item) => (
+            {[...nav, ...sideOnly].map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}

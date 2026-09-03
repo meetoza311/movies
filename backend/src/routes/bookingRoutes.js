@@ -7,6 +7,9 @@ const {
   updateBookingHandler,
   cancelBookingHandler,
   deleteBookingHandler,
+  lookupTicketHandler,
+  checkInTicketHandler,
+  listShowGateHandler,
 } = require('../controllers/bookingController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
@@ -16,6 +19,26 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', listBookings);
+
+// Gate / scanner routes (before /:id)
+router.get('/gate/show/:showId', listShowGateHandler);
+router.post(
+  '/gate/lookup',
+  [body('code').trim().notEmpty().withMessage('Ticket code is required')],
+  validate,
+  lookupTicketHandler
+);
+router.post(
+  '/gate/check-in',
+  [
+    body('code').trim().notEmpty().withMessage('Ticket code is required'),
+    body('showId').notEmpty().withMessage('showId is required'),
+    body('method').optional().isIn(['SCAN', 'MANUAL']),
+  ],
+  validate,
+  checkInTicketHandler
+);
+
 router.get('/:id', getBooking);
 
 router.post(

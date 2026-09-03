@@ -102,14 +102,44 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    /** Unique QR / gate scan code */
+    scanToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      index: true,
+    },
+    checkInStatus: {
+      type: String,
+      enum: ['PENDING', 'CHECKED_IN'],
+      default: 'PENDING',
+      index: true,
+    },
+    checkedInAt: {
+      type: Date,
+      default: null,
+    },
+    checkedInBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Admin',
+      default: null,
+    },
+    checkInMethod: {
+      type: String,
+      enum: ['SCAN', 'MANUAL'],
+      default: undefined,
+    },
   },
   { timestamps: true }
 );
 
 bookingSchema.index({ mobileNumber: 1 });
 bookingSchema.index({ showId: 1, bookingStatus: 1 });
+bookingSchema.index({ showId: 1, checkInStatus: 1 });
 bookingSchema.index({ createdAt: -1 });
 bookingSchema.index({ customerName: 1 });
+bookingSchema.index({ bookingNumber: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
 module.exports.BOOKING_STATUSES = BOOKING_STATUSES;

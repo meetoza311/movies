@@ -4,6 +4,10 @@ const {
   updateBooking,
   cancelBooking,
   deleteBookingPermanently,
+  lookupTicket,
+  checkInTicket,
+  listShowGateBookings,
+  ensureScanToken,
 } = require('../services/bookingService');
 const { AppError, asyncHandler } = require('../middleware/errorMiddleware');
 
@@ -14,6 +18,9 @@ function parsePagination(query) {
   return { page, limit, skip };
 }
 
+const POPULATE_SHOW =
+  'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status';
+
 const listBookings = asyncHandler(async (req, res) => {
   const { page, limit, skip } = parsePagination(req.query);
   const filter = {};
@@ -21,6 +28,7 @@ const listBookings = asyncHandler(async (req, res) => {
   if (req.query.status) filter.bookingStatus = req.query.status;
   if (req.query.movieId) filter.movieId = req.query.movieId;
   if (req.query.showId) filter.showId = req.query.showId;
+  if (req.query.checkInStatus) filter.checkInStatus = req.query.checkInStatus;
 
   if (req.query.date) {
     const day = new Date(req.query.date);
@@ -66,15 +74,14 @@ const listBookings = asyncHandler(async (req, res) => {
 });
 
 const getBooking = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.id)
-    .populate('movieId', 'title posterImage language genre durationMinutes')
-    .populate(
-      'showId',
-      'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status'
-    )
-    .lean();
-
+  let booking = await Booking.findById(req.params.id);
   if (!booking) throw new AppError('Booking not found', 404, 'NOT_FOUND');
+
+  booking = await ensureScanToken(booking);
+  await booking.populate([
+    { path: 'movieId', select: 'title posterImage language genre durationMinutes' },
+    { path: 'showId', select: POPULATE_SHOW },
+  ]);
 
   res.json({
     success: true,
@@ -87,10 +94,7 @@ const createBookingHandler = asyncHandler(async (req, res) => {
   const booking = await createBooking(req.body);
   const populated = await Booking.findById(booking._id)
     .populate('movieId', 'title posterImage language genre durationMinutes')
-    .populate(
-      'showId',
-      'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status'
-    );
+    .populate('showId', POPULATE_SHOW);
 
   res.status(201).json({
     success: true,
@@ -103,10 +107,7 @@ const updateBookingHandler = asyncHandler(async (req, res) => {
   const booking = await updateBooking(req.params.id, req.body);
   const populated = await Booking.findById(booking._id)
     .populate('movieId', 'title posterImage language genre durationMinutes')
-    .populate(
-      'showId',
-      'showDate startTime endTime seatPrice guestPrice ownerPrice totalSeats status'
-    );
+    .populate('showId', POPULATE_SHOW);
 
   res.json({
     success: true,
@@ -133,6 +134,44 @@ const deleteBookingHandler = asyncHandler(async (req, res) => {
   });
 });
 
+const lookupTicketHandler = asyncHandler(async (req, res) => {
+  const code = req.body.code || req.query.code;
+  const showId = req.body.showId || req.query.showId;
+  const data = await lookupTicket({ code, showId });
+  res.json({
+    success: true,
+    message: 'Ticket found',
+    data,
+  });
+});
+
+const checkInTicketHandler = asyncHandler(async (req, res) => {
+  const { code, showId, method } = req.body;
+  const data = await checkInTicket({
+    code,
+    showId,
+    method: method === 'MANUAL' ? 'MANUAL' : 'SCAN',
+    adminId: req.admin?._id || null,
+  });
+  res.json({
+    success: true,
+    message: 'Ticket allotted successfully',
+    data,
+  });
+});
+
+const listShowGateHandler = asyncHandler(async (req, res) => {
+  const data = await listShowGateBookings(req.params.showId);
+  const pending = data.filter((b) => b.checkInStatus !== 'CHECKED_IN').length;
+  const checkedIn = data.filter((b) => b.checkInStatus === 'CHECKED_IN').length;
+  res.json({
+    success: true,
+    message: 'Show gate list',
+    data,
+    meta: { total: data.length, pending, checkedIn },
+  });
+});
+
 module.exports = {
   listBookings,
   getBooking,
@@ -140,4 +179,7 @@ module.exports = {
   updateBookingHandler,
   cancelBookingHandler,
   deleteBookingHandler,
+  lookupTicketHandler,
+  checkInTicketHandler,
+  listShowGateHandler,
 };

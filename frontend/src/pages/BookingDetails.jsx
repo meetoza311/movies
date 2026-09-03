@@ -200,6 +200,21 @@ export default function BookingDetails() {
                 )}`}
               />
               <Row label="Total" value={formatCurrency(booking.totalAmount)} />
+              <Row
+                label="Entry"
+                value={
+                  booking.checkInStatus === 'CHECKED_IN'
+                    ? `Allotted${
+                        booking.checkedInAt
+                          ? ` · ${new Date(booking.checkedInAt).toLocaleString('en-IN')}`
+                          : ''
+                      }`
+                    : 'Not scanned yet'
+                }
+              />
+              {booking.scanToken && (
+                <Row label="Scan code" value={booking.scanToken} />
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -283,6 +298,11 @@ export default function BookingDetails() {
           <Button className="w-full" onClick={() => setShowTicket(true)}>
             Download / Share PDF
           </Button>
+          <Link to="/verify">
+            <Button variant="outline" className="w-full">
+              Open scanner
+            </Button>
+          </Link>
           <Link to={`/shows/${showId}`}>
             <Button variant="outline" className="w-full">
               Open show

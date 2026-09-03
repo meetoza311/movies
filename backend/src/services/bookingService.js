@@ -4,6 +4,7 @@ const Show = require('../models/Show');
 const Movie = require('../models/Movie');
 const Seat = require('../models/Seat');
 const { generateBookingNumber } = require('../utils/generateBookingNumber');
+const { generateScanToken } = require('../utils/generateScanToken');
 const { assertSeatsAvailable } = require('./seatService');
 const { AppError } = require('../middleware/errorMiddleware');
 const logger = require('../utils/logger');
@@ -171,6 +172,8 @@ async function createBooking({ showId, customerName, mobileNumber, seats }) {
         totalAmount,
         bookingStatus: 'CONFIRMED',
         bookingDate: new Date(),
+        scanToken: generateScanToken(),
+        checkInStatus: 'PENDING',
       },
     ];
 
@@ -375,6 +378,181 @@ async function deleteBookingPermanently(bookingId) {
   });
 }
 
+async function ensureScanToken(booking) {
+  if (booking.scanToken) return booking;
+  booking.scanToken = generateScanToken();
+  if (!booking.checkInStatus) booking.checkInStatus = 'PENDING';
+  await booking.save();
+  return booking;
+}
+
+function parseGateCode(raw) {
+  const code = String(raw || '').trim();
+  if (!code) {
+    throw new AppError('Ticket code is required', 400, 'VALIDATION_ERROR');
+  }
+
+  // Accept plain token, booking number, or payload like SS:<token> / JSON
+  if (code.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(code);
+      return String(parsed.token || parsed.scanToken || parsed.code || '').trim();
+    } catch {
+      /* fall through */
+    }
+  }
+
+  const prefixed = code.match(/^(?:SS|SAVAN)[:|#-](.+)$/i);
+  if (prefixed) return prefixed[1].trim();
+
+  return code;
+}
+
+async function findBookingByGateCode(code) {
+  const value = parseGateCode(code);
+  const upper = value.toUpperCase();
+
+  let booking = await Booking.findOne({ scanToken: value });
+  if (!booking && /^[A-F0-9]{32}$/i.test(value)) {
+    booking = await Booking.findOne({ scanToken: value.toLowerCase() });
+  }
+  if (!booking) {
+    booking = await Booking.findOne({ bookingNumber: upper });
+  }
+  if (!booking) {
+    throw new AppError('Ticket not found', 404, 'TICKET_NOT_FOUND');
+  }
+
+  await ensureScanToken(booking);
+  return booking;
+}
+
+function serializeGateBooking(booking) {
+  const obj = booking.toObject ? booking.toObject() : booking;
+  return {
+    _id: obj._id,
+    bookingNumber: obj.bookingNumber,
+    scanToken: obj.scanToken,
+    customerName: obj.customerName,
+    mobileNumber: obj.mobileNumber,
+    seats: obj.seats,
+    numberOfSeats: obj.numberOfSeats,
+    totalAmount: obj.totalAmount,
+    guestPrice: obj.guestPrice,
+    ownerPrice: obj.ownerPrice,
+    bookingStatus: obj.bookingStatus,
+    checkInStatus: obj.checkInStatus || 'PENDING',
+    checkedInAt: obj.checkedInAt,
+    checkInMethod: obj.checkInMethod,
+    movieId: obj.movieId,
+    showId: obj.showId,
+  };
+}
+
+/**
+ * Lookup ticket without checking in (preview).
+ * Optional showId — if provided and mismatch, error WRONG_SHOW.
+ */
+async function lookupTicket({ code, showId }) {
+  const booking = await findBookingByGateCode(code);
+  await booking.populate([
+    { path: 'movieId', select: 'title posterImage language' },
+    {
+      path: 'showId',
+      select: 'showDate startTime endTime guestPrice ownerPrice seatPrice status',
+    },
+  ]);
+
+  if (showId && String(booking.showId._id || booking.showId) !== String(showId)) {
+    throw new AppError(
+      'This ticket belongs to a different show',
+      409,
+      'WRONG_SHOW'
+    );
+  }
+
+  return serializeGateBooking(booking);
+}
+
+/**
+ * Check in / allot ticket at gate.
+ * method: SCAN | MANUAL
+ */
+async function checkInTicket({ code, showId, method = 'SCAN', adminId = null }) {
+  if (!showId) {
+    throw new AppError('showId is required for gate check-in', 400, 'VALIDATION_ERROR');
+  }
+
+  const booking = await findBookingByGateCode(code);
+
+  if (String(booking.showId) !== String(showId)) {
+    await booking.populate([
+      { path: 'movieId', select: 'title' },
+      { path: 'showId', select: 'showDate startTime' },
+    ]);
+    throw new AppError(
+      'This ticket belongs to a different show',
+      409,
+      'WRONG_SHOW'
+    );
+  }
+
+  if (booking.bookingStatus === 'CANCELLED') {
+    throw new AppError('This booking is cancelled', 400, 'BOOKING_CANCELLED');
+  }
+
+  if (booking.checkInStatus === 'CHECKED_IN') {
+    await booking.populate([
+      { path: 'movieId', select: 'title posterImage language' },
+      {
+        path: 'showId',
+        select: 'showDate startTime endTime guestPrice ownerPrice seatPrice status',
+      },
+    ]);
+    const err = new AppError(
+      'Already scanned / allotted — this ticket was already checked in',
+      409,
+      'ALREADY_CHECKED_IN'
+    );
+    err.data = serializeGateBooking(booking);
+    throw err;
+  }
+
+  booking.checkInStatus = 'CHECKED_IN';
+  booking.checkedInAt = new Date();
+  booking.checkInMethod = method === 'MANUAL' ? 'MANUAL' : 'SCAN';
+  if (adminId) booking.checkedInBy = adminId;
+  await booking.save();
+
+  await booking.populate([
+    { path: 'movieId', select: 'title posterImage language' },
+    {
+      path: 'showId',
+      select: 'showDate startTime endTime guestPrice ownerPrice seatPrice status',
+    },
+  ]);
+
+  logger.info('Ticket checked in', {
+    bookingNumber: booking.bookingNumber,
+    method: booking.checkInMethod,
+  });
+
+  return serializeGateBooking(booking);
+}
+
+async function listShowGateBookings(showId) {
+  const bookings = await Booking.find({ showId })
+    .populate('movieId', 'title')
+    .sort({ checkedInAt: -1, createdAt: -1 })
+    .lean();
+
+  return bookings.map((b) => ({
+    ...b,
+    checkInStatus: b.checkInStatus || 'PENDING',
+    scanToken: b.scanToken || null,
+  }));
+}
+
 module.exports = {
   createBooking,
   updateBooking,
@@ -382,5 +560,9 @@ module.exports = {
   deleteBookingPermanently,
   validateCustomer,
   resolveShowPrices,
+  ensureScanToken,
+  lookupTicket,
+  checkInTicket,
+  listShowGateBookings,
   INDIAN_MOBILE,
 };

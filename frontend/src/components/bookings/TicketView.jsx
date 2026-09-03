@@ -1,19 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Download, MessageCircle, Printer, Share2, X } from 'lucide-react';
 import { formatCurrency, formatDate, formatTime } from '../../utils/format';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 
-export default function TicketView({ booking, onClose }) {
-  const [busy, setBusy] = useState(null);
+/** jsPDF Helvetica cannot draw ₹ / × / · — use ASCII-safe strings in PDF only */
+function pdfMoney(amount) {
+  const n = Number(amount) || 0;
+  return `Rs. ${Math.round(n).toLocaleString('en-IN')}`;
+}
 
-  if (!booking) return null;
+function pdfSafe(text) {
+  return String(text ?? '')
+    .replace(/₹/g, 'Rs. ')
+    .replace(/×/g, 'x')
+    .replace(/·/g, '|')
+    .replace(/—|–/g, '-')
+    .replace(/[^\x20-\x7E\n]/g, '');
+}
 
-  const movie = booking.movieId;
-  const show = booking.showId;
-  const movieTitle = typeof movie === 'object' ? movie.title : 'Movie';
-  const seatLines = (booking.seats || []).map((s) => {
+function seatLinesFromBooking(booking) {
+  return (booking.seats || []).map((s) => {
     const cat = String(s.category || 'GUEST').toUpperCase() === 'OWNER' ? 'Owner' : 'Guest';
     const price =
       s.price != null
@@ -25,14 +33,62 @@ export default function TicketView({ booking, onClose }) {
           );
     return `${s.seatNumber} (${cat} ${price})`;
   });
+}
+
+function ensureSpace(pdf, y, need, margin) {
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  if (y + need <= pageHeight - margin) return y;
+  pdf.addPage();
+  return margin;
+}
+
+export default function TicketView({ booking, onClose }) {
+  const [busy, setBusy] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
+  const movie = booking?.movieId;
+  const show = booking?.showId;
+  const movieTitle = typeof movie === 'object' ? movie.title : 'Movie';
+  const seatLines = useMemo(() => (booking ? seatLinesFromBooking(booking) : []), [booking]);
   const seatsText = seatLines.join(', ') || '—';
-  const guestCount = (booking.seats || []).filter(
+  const guestCount = (booking?.seats || []).filter(
     (s) => String(s.category || 'GUEST').toUpperCase() !== 'OWNER'
   ).length;
-  const ownerCount = (booking.seats || []).filter(
+  const ownerCount = (booking?.seats || []).filter(
     (s) => String(s.category || '').toUpperCase() === 'OWNER'
   ).length;
-  const fileName = `Savan-Sentosa-${booking.bookingNumber || 'ticket'}.pdf`;
+  const fileName = `Savan-Sentosa-${booking?.bookingNumber || 'ticket'}.pdf`;
+  const scanPayload = booking?.scanToken
+    ? `SS:${booking.scanToken}`
+    : booking?.bookingNumber || '';
+
+  useEffect(() => {
+    let cancelled = false;
+    async function makeQr() {
+      if (!scanPayload) {
+        setQrDataUrl('');
+        return;
+      }
+      try {
+        const QRCode = (await import('qrcode')).default;
+        const url = await QRCode.toDataURL(scanPayload, {
+          width: 280,
+          margin: 1,
+          color: { dark: '#1a1040', light: '#ffffff' },
+          errorCorrectionLevel: 'M',
+        });
+        if (!cancelled) setQrDataUrl(url);
+      } catch {
+        if (!cancelled) setQrDataUrl('');
+      }
+    }
+    makeQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [scanPayload]);
+
+  if (!booking) return null;
 
   const shareText = [
     `*Savan Sentosa* — Admission Ticket`,
@@ -44,10 +100,17 @@ export default function TicketView({ booking, onClose }) {
     `Guest: ${guestCount} · Owner: ${ownerCount}`,
     `Total: ${formatCurrency(booking.totalAmount)}`,
     `Booking ID: ${booking.bookingNumber}`,
-  ].join('\n');
+    booking.scanToken ? `Scan code: ${booking.scanToken}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   async function buildPdfBlob() {
-    const { jsPDF } = await import('jspdf');
+    const [{ jsPDF }, QRCode] = await Promise.all([
+      import('jspdf'),
+      import('qrcode').then((m) => m.default),
+    ]);
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -55,88 +118,190 @@ export default function TicketView({ booking, onClose }) {
     });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 18;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 14;
     const contentWidth = pageWidth - margin * 2;
-    let y = 22;
+    const labelW = 38;
+    const valueW = contentWidth - labelW - 4;
+    let y = margin;
 
-    // Header bar (hex only — no oklab/css parsing)
-    pdf.setFillColor(225, 29, 72);
-    pdf.rect(0, 0, pageWidth, 36, 'F');
-    pdf.setFillColor(26, 16, 64);
-    pdf.rect(0, 28, pageWidth, 8, 'F');
+    function drawHeader() {
+      pdf.setFillColor(26, 16, 64);
+      pdf.roundedRect(margin, y, contentWidth, 36, 3, 3, 'F');
+      pdf.setFillColor(225, 29, 72);
+      pdf.rect(margin, y + 33, contentWidth, 3, 'F');
 
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(22);
-    pdf.text('Savan Sentosa', pageWidth / 2, 16, { align: 'center' });
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    pdf.text('ADMISSION TICKET', pageWidth / 2, 24, { align: 'center' });
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(20);
+      pdf.text('Savan Sentosa', pageWidth / 2, y + 14, { align: 'center' });
 
-    y = 48;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(253, 224, 71);
+      pdf.text('CINEMA ADMISSION TICKET', pageWidth / 2, y + 22, { align: 'center' });
+
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(pdfSafe(booking.bookingNumber || ''), pageWidth / 2, y + 30, {
+        align: 'center',
+      });
+
+      y += 44;
+    }
+
+    function drawField(label, value, opts = {}) {
+      const fontSize = opts.fontSize || 11;
+      const lineH = opts.lineH || 5.5;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      const valueLines = pdf.splitTextToSize(pdfSafe(value), valueW);
+      const blockH = Math.max(lineH + 2, valueLines.length * lineH + 4);
+      y = ensureSpace(pdf, y, blockH + 4, margin);
+
+      pdf.setTextColor(120, 113, 108);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.text(pdfSafe(label).toUpperCase(), margin, y + 4);
+
+      pdf.setTextColor(26, 16, 64);
+      pdf.setFont('helvetica', opts.boldValue === false ? 'normal' : 'bold');
+      pdf.setFontSize(fontSize);
+      pdf.text(valueLines, margin + labelW, y + 4);
+
+      y += blockH;
+      pdf.setDrawColor(245, 200, 150);
+      pdf.setLineWidth(0.25);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 4;
+    }
+
+    drawHeader();
+
+    // Movie title card
+    y = ensureSpace(pdf, y, 24, margin);
+    pdf.setFillColor(255, 247, 237);
+    const titleLines = pdf.splitTextToSize(pdfSafe(movieTitle || 'Movie'), contentWidth - 8);
+    const titleBoxH = Math.max(18, titleLines.length * 7 + 8);
+    pdf.roundedRect(margin, y, contentWidth, titleBoxH, 2, 2, 'F');
     pdf.setTextColor(26, 16, 64);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text(String(movieTitle || 'Movie'), margin, y);
-    y += 8;
+    pdf.text(titleLines, pageWidth / 2, y + 8, { align: 'center' });
+    y += titleBoxH + 6;
 
-    pdf.setDrawColor(254, 215, 170);
-    pdf.setLineWidth(0.3);
-
-    const rows = [
-      ['Date', formatDate(show?.showDate)],
-      ['Time', formatTime(show?.startTime)],
-      ['Customer', booking.customerName || '—'],
-      ['Mobile', booking.mobileNumber || '—'],
-      ['Seats', seatsText],
-      [
-        'Guest',
-        `${guestCount} x ${formatCurrency(booking.guestPrice ?? booking.seatPrice ?? 80)}`,
-      ],
-      ['Owner', `${ownerCount} x ${formatCurrency(booking.ownerPrice ?? 50)}`],
-      ['Booking ID', booking.bookingNumber || '—'],
-      ['Status', booking.bookingStatus || '—'],
-    ];
-
-    pdf.setFontSize(11);
-    rows.forEach(([label, value]) => {
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(120, 113, 108);
-      pdf.text(label, margin, y);
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(26, 16, 64);
-      const valueLines = pdf.splitTextToSize(String(value ?? '—'), contentWidth * 0.55);
-      pdf.text(valueLines, pageWidth - margin, y, { align: 'right' });
-
-      const blockHeight = Math.max(7, valueLines.length * 5 + 2);
-      y += blockHeight;
-      pdf.setDrawColor(254, 215, 170);
-      pdf.line(margin, y - 3, pageWidth - margin, y - 3);
-    });
-
-    y += 4;
-    pdf.setFillColor(255, 247, 237);
-    pdf.roundedRect(margin, y, contentWidth, 22, 3, 3, 'F');
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    pdf.setTextColor(120, 113, 108);
-    pdf.text('TOTAL', margin + 4, y + 8);
+    // Date / time strip
+    y = ensureSpace(pdf, y, 14, margin);
+    const when = pdfSafe(
+      `${formatDate(show?.showDate)}  |  ${formatTime(show?.startTime)}${
+        show?.endTime ? ` - ${formatTime(show.endTime)}` : ''
+      }`
+    );
+    pdf.setFillColor(26, 16, 64);
+    pdf.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F');
+    pdf.setTextColor(255, 255, 255);
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(18);
-    pdf.setTextColor(225, 29, 72);
-    pdf.text(formatCurrency(booking.totalAmount), margin + 4, y + 17);
+    pdf.setFontSize(10);
+    pdf.text(when, pageWidth / 2, y + 8, { align: 'center' });
+    y += 18;
 
-    y += 32;
+    drawField('Customer', booking.customerName || '-');
+    drawField('Mobile', booking.mobileNumber || '-');
+
+    // Seats as wrapped list (readable when many)
+    const seatNums = (booking.seats || []).map((s) => {
+      const cat = String(s.category || 'GUEST').toUpperCase() === 'OWNER' ? 'O' : 'G';
+      return `${String(s.seatNumber).toUpperCase()}(${cat})`;
+    });
+    const seatsDisplay =
+      seatNums.length === 0
+        ? '-'
+        : seatNums.join(', ');
+    drawField('Seats', seatsDisplay, { fontSize: 10, lineH: 5 });
+
+    drawField(
+      'Guest',
+      `${guestCount} x ${pdfMoney(booking.guestPrice ?? booking.seatPrice ?? 80)}`
+    );
+    drawField('Owner', `${ownerCount} x ${pdfMoney(booking.ownerPrice ?? 50)}`);
+    drawField(
+      'Entry',
+      booking.checkInStatus === 'CHECKED_IN' ? 'Already allotted' : 'Valid for entry'
+    );
+
+    // Total bar
+    y = ensureSpace(pdf, y, 24, margin);
+    pdf.setFillColor(225, 29, 72);
+    pdf.roundedRect(margin, y, contentWidth, 20, 3, 3, 'F');
+    pdf.setTextColor(255, 255, 255);
     pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.text('TOTAL PAID', margin + 6, y + 8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(16);
+    pdf.text(pdfMoney(booking.totalAmount), margin + 6, y + 16);
     pdf.setFontSize(9);
+    pdf.text(`${booking.numberOfSeats || seatNums.length || 0} seat(s)`, pageWidth - margin - 6, y + 12, {
+      align: 'right',
+    });
+    y += 28;
+
+    // QR section
+    let qrImage = qrDataUrl;
+    if (!qrImage && scanPayload) {
+      qrImage = await QRCode.toDataURL(scanPayload, {
+        width: 320,
+        margin: 1,
+        color: { dark: '#1a1040', light: '#ffffff' },
+      });
+    }
+
+    if (qrImage) {
+      const qrSize = 48;
+      y = ensureSpace(pdf, y, qrSize + 28, margin);
+      const boxW = Math.min(contentWidth, 70);
+      const boxX = (pageWidth - boxW) / 2;
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(254, 215, 170);
+      pdf.setLineWidth(0.6);
+      pdf.roundedRect(boxX, y, boxW, qrSize + 22, 3, 3, 'FD');
+      const qrX = (pageWidth - qrSize) / 2;
+      pdf.addImage(qrImage, 'PNG', qrX, y + 4, qrSize, qrSize);
+      pdf.setTextColor(26, 16, 64);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.text('Scan at entry gate', pageWidth / 2, y + qrSize + 10, { align: 'center' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(120, 113, 108);
+      const codeLines = pdf.splitTextToSize(
+        pdfSafe(booking.scanToken || booking.bookingNumber || ''),
+        boxW - 6
+      );
+      pdf.text(codeLines, pageWidth / 2, y + qrSize + 15, { align: 'center' });
+      y += qrSize + 28;
+    }
+
+    y = ensureSpace(pdf, y, 16, margin);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
     pdf.setTextColor(120, 113, 108);
-    pdf.text('Thank you for choosing Savan Sentosa.', pageWidth / 2, y, {
+    pdf.text('Please arrive 15 minutes before show time.', pageWidth / 2, y, {
       align: 'center',
     });
-    pdf.text('Please arrive 15 minutes before show time.', pageWidth / 2, y + 5, {
+    pdf.text('One scan per ticket  |  Savan Sentosa Cinema', pageWidth / 2, y + 5, {
       align: 'center',
     });
+
+    // Footer page numbers if multi-page
+    const pages = pdf.getNumberOfPages();
+    for (let i = 1; i <= pages; i += 1) {
+      pdf.setPage(i);
+      pdf.setFontSize(7);
+      pdf.setTextColor(160, 160, 160);
+      pdf.text(`Page ${i} of ${pages}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+    }
 
     return pdf.output('blob');
   }
@@ -196,13 +361,13 @@ export default function TicketView({ booking, onClose }) {
         downloadBlob(blob, fileName);
         await navigator.share({
           title: `Ticket ${booking.bookingNumber}`,
-          text: `${shareText}\n\n(PDF also downloaded — attach it if needed)`,
+          text: `${shareText}\n\n(PDF also downloaded - attach it if needed)`,
         });
         return;
       }
 
       downloadBlob(blob, fileName);
-      toast.success('PDF downloaded — share it from your files');
+      toast.success('PDF downloaded - share it from your files');
     });
   }
 
@@ -222,10 +387,10 @@ export default function TicketView({ booking, onClose }) {
 
       downloadBlob(blob, fileName);
       const url = `https://wa.me/?text=${encodeURIComponent(
-        `${shareText}\n\nTicket PDF downloaded — attach ${fileName} in WhatsApp.`
+        `${shareText}\n\nTicket PDF downloaded - attach ${fileName} in WhatsApp.`
       )}`;
       window.open(url, '_blank', 'noopener,noreferrer');
-      toast.success('PDF downloaded — attach it in WhatsApp');
+      toast.success('PDF downloaded - attach it in WhatsApp');
     });
   }
 
@@ -237,7 +402,7 @@ export default function TicketView({ booking, onClose }) {
         <div className="no-print flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
           <div>
             <p className="text-sm font-bold text-ink">Ticket ready</p>
-            <p className="text-xs text-muted">Download, share, or print</p>
+            <p className="text-xs text-muted">QR · Download · Share · Print</p>
           </div>
           <button
             type="button"
@@ -251,19 +416,24 @@ export default function TicketView({ booking, onClose }) {
 
         <div className="overflow-y-auto">
           <div className="ticket-print bg-white">
-            <div className="bg-gradient-to-r from-teal to-ink px-6 py-5 text-center text-white">
+            <div className="bg-gradient-to-br from-ink via-ink-soft to-teal px-6 py-6 text-center text-white">
               <p className="text-2xl font-extrabold tracking-wide">
                 Savan <span className="text-gold">Sentosa</span>
               </p>
-              <p className="mt-1 text-xs uppercase tracking-[0.25em] text-white/60">
+              <p className="mt-1 text-[10px] uppercase tracking-[0.3em] text-white/70">
                 Admission Ticket
               </p>
+              <p className="mt-3 font-mono text-xs text-white/80">{booking.bookingNumber}</p>
             </div>
 
-            <div className="space-y-4 px-6 py-5 text-sm">
-              <Row label="Movie" value={movieTitle} />
-              <Row label="Date" value={formatDate(show?.showDate)} />
-              <Row label="Time" value={formatTime(show?.startTime)} />
+            <div className="space-y-3 px-6 py-5 text-sm">
+              <p className="text-center font-display text-xl font-bold text-ink break-words">
+                {movieTitle}
+              </p>
+              <p className="text-center text-sm text-muted">
+                {formatDate(show?.showDate)} · {formatTime(show?.startTime)}
+              </p>
+
               <Row label="Customer" value={booking.customerName} />
               <Row label="Mobile" value={booking.mobileNumber} />
               <Row label="Seats" value={seatsText} />
@@ -277,16 +447,33 @@ export default function TicketView({ booking, onClose }) {
                 label="Owner"
                 value={`${ownerCount} × ${formatCurrency(booking.ownerPrice ?? 50)}`}
               />
-              <div className="rounded-xl bg-paper px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">Total</p>
-                <p className="text-2xl font-extrabold text-teal">
-                  {formatCurrency(booking.totalAmount)}
-                </p>
+
+              <div className="rounded-xl bg-teal px-4 py-3 text-white">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-white/70">Total</p>
+                <p className="text-2xl font-extrabold">{formatCurrency(booking.totalAmount)}</p>
               </div>
-              <Row label="Booking ID" value={booking.bookingNumber} />
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Status</span>
-                <Badge tone={booking.bookingStatus}>{booking.bookingStatus}</Badge>
+
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-paper px-4 py-4">
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="Ticket QR code"
+                    className="h-40 w-40 rounded-lg bg-white p-2"
+                  />
+                ) : (
+                  <div className="flex h-40 w-40 items-center justify-center rounded-lg bg-white text-xs text-muted">
+                    Preparing QR…
+                  </div>
+                )}
+                <p className="text-xs font-semibold text-ink">Scan at entry gate</p>
+                <p className="break-all text-center font-mono text-[10px] text-muted">
+                  {booking.scanToken || booking.bookingNumber}
+                </p>
+                {booking.checkInStatus === 'CHECKED_IN' ? (
+                  <Badge tone="CANCELLED">Already allotted</Badge>
+                ) : (
+                  <Badge tone="CONFIRMED">Ready to scan</Badge>
+                )}
               </div>
             </div>
           </div>
@@ -340,9 +527,9 @@ export default function TicketView({ booking, onClose }) {
 
 function Row({ label, value }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-dashed border-line pb-3">
-      <span className="text-muted">{label}</span>
-      <span className="text-right font-semibold text-ink">{value}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-dashed border-line pb-2">
+      <span className="shrink-0 text-muted">{label}</span>
+      <span className="break-words text-right font-semibold text-ink">{value}</span>
     </div>
   );
 }

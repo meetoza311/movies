@@ -9,13 +9,23 @@ export function SeatLegend({ mode = 'book' }) {
         <>
           <LegendSwatch className="border-sky bg-sky text-white" label="Selected guest" />
           <LegendSwatch className="border-gold bg-gold text-ink" label="Selected owner" />
+          <LegendSwatch className="border-sky/40 bg-sky/25 text-sky" label="Guest booked" />
+          <LegendSwatch className="border-gold/50 bg-gold/30 text-warn" label="Owner booked" />
         </>
       )}
       {mode === 'view' && (
-        <LegendSwatch className="border-teal ring-2 ring-teal bg-teal text-white" label="My seats" />
+        <>
+          <LegendSwatch className="border-teal ring-2 ring-teal bg-teal text-white" label="My seats" />
+          <LegendSwatch className="border-sky/40 bg-sky/25 text-sky" label="Guest booked" />
+          <LegendSwatch className="border-gold/50 bg-gold/30 text-warn" label="Owner booked" />
+        </>
       )}
-      <LegendSwatch className="border-sky/40 bg-sky/25 text-sky" label="Guest booked" />
-      <LegendSwatch className="border-gold/50 bg-gold/30 text-warn" label="Owner booked" />
+      {mode === 'manage' && (
+        <>
+          <LegendSwatch className="border-danger/50 bg-danger text-white" label="Booked · not allotted" />
+          <LegendSwatch className="border-ink/20 bg-ink/20 text-ink/40" label="Allotted (done)" />
+        </>
+      )}
     </div>
   );
 }
@@ -36,6 +46,8 @@ function LegendSwatch({ className, label }) {
  * selected: string[] OR [{ seatNumber, category }]
  * highlightSeats: string[] — my booking seats (view mode)
  * activeCategory: GUEST | OWNER — color for newly selected seats
+ * mode: book | view | manage
+ *   manage: pending booked = red, allotted = gray disabled
  */
 export default function SeatMap({
   seats = [],
@@ -137,6 +149,9 @@ export default function SeatMap({
 
                   const seatNumber = String(seat.seatNumber).toUpperCase().trim();
                   const isBooked = seat.status === 'BOOKED';
+                  const isAllotted =
+                    isBooked && String(seat.checkInStatus || '').toUpperCase() === 'CHECKED_IN';
+                  const isPendingAllot = isBooked && !isAllotted;
                   const bookedCategory = String(seat.category || 'GUEST').toUpperCase();
                   const selectedCategory = selectedMap.get(seatNumber);
                   const isSelected = selectedMap.has(seatNumber);
@@ -144,7 +159,10 @@ export default function SeatMap({
                   const canSelect = !readonly && !isBooked && Boolean(onToggle);
 
                   let label = `${seatNumber} available`;
-                  if (isBooked && isMine) label = `${seatNumber} my seat (${bookedCategory})`;
+                  if (mode === 'manage' && isAllotted) label = `${seatNumber} allotted`;
+                  else if (mode === 'manage' && isPendingAllot)
+                    label = `${seatNumber} booked — not allotted`;
+                  else if (isBooked && isMine) label = `${seatNumber} my seat (${bookedCategory})`;
                   else if (isBooked) label = `${seatNumber} booked ${bookedCategory}`;
                   else if (isSelected) label = `${seatNumber} selected ${selectedCategory}`;
 
@@ -155,46 +173,68 @@ export default function SeatMap({
                       title={label}
                       aria-label={label}
                       aria-pressed={isSelected || isMine}
-                      disabled={!canSelect && !readonly}
+                      disabled={
+                        mode === 'manage'
+                          ? true
+                          : !canSelect && !readonly
+                      }
                       onClick={() => handleToggle(seatNumber)}
                       className={cn(
                         'aspect-square w-full touch-manipulation select-none rounded-[4px] border font-bold transition active:scale-90 sm:rounded-md',
                         'flex items-center justify-center',
                         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal',
                         seatLabelClass,
-                        // My seats (view booking) — strongest highlight
-                        isBooked &&
+                        // Manage allotment view
+                        mode === 'manage' &&
+                          !isBooked &&
+                          'cursor-default border-line bg-surface text-ink',
+                        mode === 'manage' &&
+                          isPendingAllot &&
+                          'cursor-default border-danger/60 bg-danger text-white shadow-sm',
+                        mode === 'manage' &&
+                          isAllotted &&
+                          'cursor-not-allowed border-ink/15 bg-ink/15 text-ink/35 line-through',
+                        // Booking detail "my seats"
+                        mode !== 'manage' &&
+                          isBooked &&
                           isMine &&
                           bookedCategory === 'OWNER' &&
                           'cursor-default border-gold bg-gold text-ink ring-2 ring-teal ring-offset-1',
-                        isBooked &&
+                        mode !== 'manage' &&
+                          isBooked &&
                           isMine &&
                           bookedCategory !== 'OWNER' &&
                           'cursor-default border-teal bg-teal text-white ring-2 ring-ink/30 ring-offset-1',
-                        // Other booked
-                        isBooked &&
+                        // Other booked (book/view)
+                        mode !== 'manage' &&
+                          isBooked &&
                           !isMine &&
                           bookedCategory === 'OWNER' &&
                           'cursor-default border-gold/40 bg-gold/30 text-warn',
-                        isBooked &&
+                        mode !== 'manage' &&
+                          isBooked &&
                           !isMine &&
                           bookedCategory !== 'OWNER' &&
                           'cursor-default border-sky/40 bg-sky/25 text-sky',
                         // Selected while booking
-                        !isBooked &&
+                        mode !== 'manage' &&
+                          !isBooked &&
                           isSelected &&
                           selectedCategory === 'OWNER' &&
                           'border-gold bg-gold text-ink shadow-sm',
-                        !isBooked &&
+                        mode !== 'manage' &&
+                          !isBooked &&
                           isSelected &&
                           selectedCategory !== 'OWNER' &&
                           'border-sky bg-sky text-white shadow-sm',
-                        // Available
-                        !isBooked &&
+                        // Available (book/view)
+                        mode !== 'manage' &&
+                          !isBooked &&
                           !isSelected &&
                           canSelect &&
                           'border-line bg-surface text-ink active:border-sky active:bg-sky/10',
-                        !isBooked &&
+                        mode !== 'manage' &&
+                          !isBooked &&
                           !isSelected &&
                           !canSelect &&
                           'border-line bg-surface text-ink'

@@ -181,7 +181,12 @@ export default function Bookings() {
                 </td>
                 <td className="px-4 py-3 font-semibold">{formatCurrency(b.totalAmount)}</td>
                 <td className="px-4 py-3">
-                  <Badge tone={b.bookingStatus}>{b.bookingStatus}</Badge>
+                  <div className="flex flex-col gap-1">
+                    <Badge tone={b.bookingStatus}>{b.bookingStatus}</Badge>
+                    {b.checkInStatus === 'CHECKED_IN' && (
+                      <Badge tone="CONFIRMED">Allotted</Badge>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
@@ -217,7 +222,12 @@ export default function Bookings() {
                   {formatDate(b.showId?.showDate)} · {formatTime(b.showId?.startTime)}
                 </p>
               </div>
-              <Badge tone={b.bookingStatus}>{b.bookingStatus}</Badge>
+              <div className="flex flex-col items-end gap-1">
+                <Badge tone={b.bookingStatus}>{b.bookingStatus}</Badge>
+                {b.checkInStatus === 'CHECKED_IN' && (
+                  <Badge tone="CONFIRMED">Allotted</Badge>
+                )}
+              </div>
             </div>
             <p className="mt-2 text-sm">
               {b.customerName} · {b.mobileNumber}

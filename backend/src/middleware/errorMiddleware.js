@@ -54,6 +54,7 @@ const errorHandler = (err, req, res, _next) => {
     success: false,
     message,
     errorCode,
+    ...(err.data ? { data: err.data } : {}),
   });
 };
 
