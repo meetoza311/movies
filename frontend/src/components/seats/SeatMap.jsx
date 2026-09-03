@@ -3,7 +3,7 @@ import { cn } from '../../utils/format';
 
 export function SeatLegend({ mode = 'book' }) {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] font-semibold text-muted sm:gap-x-4 sm:text-xs">
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-[11px] font-semibold text-muted sm:gap-x-4 sm:text-xs">
       <LegendSwatch className="border-line bg-surface" label="Available" />
       {mode === 'book' && (
         <>
@@ -22,8 +22,8 @@ export function SeatLegend({ mode = 'book' }) {
       )}
       {mode === 'manage' && (
         <>
-          <LegendSwatch className="border-danger/50 bg-danger text-white" label="Booked · not allotted" />
-          <LegendSwatch className="border-ink/20 bg-ink/20 text-ink/40" label="Allotted (done)" />
+          <LegendSwatch className="border-danger/50 bg-danger text-white" label="Booked, not allotted" />
+          <LegendSwatch className="border-ink/20 bg-ink/20 text-ink/40" label="Allotted" />
         </>
       )}
     </div>
@@ -32,12 +32,12 @@ export function SeatLegend({ mode = 'book' }) {
 
 function LegendSwatch({ className, label }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex max-w-full items-center gap-1.5">
       <span
-        className={cn('inline-block h-3.5 w-3.5 rounded-sm border sm:h-4 sm:w-4', className)}
+        className={cn('inline-block h-3.5 w-3.5 shrink-0 rounded-sm border sm:h-4 sm:w-4', className)}
         aria-hidden
       />
-      {label}
+      <span className="leading-tight">{label}</span>
     </span>
   );
 }
@@ -114,8 +114,8 @@ export default function SeatMap({
         : 'text-[10px] sm:text-[11px]';
 
   return (
-    <div className="w-full space-y-3 sm:space-y-4">
-      <div className="px-6 sm:px-10">
+    <div className="w-full min-w-0 touch-pan-y space-y-3 overflow-visible sm:space-y-4">
+      <div className="px-4 sm:px-10">
         <div className="cinema-screen py-2 text-center text-[9px] font-bold uppercase tracking-[0.3em] text-muted sm:py-2.5 sm:text-[10px]">
           Screen this way
         </div>
@@ -123,12 +123,12 @@ export default function SeatMap({
 
       <SeatLegend mode={mode} />
 
-      <div className="w-full space-y-1 sm:space-y-1.5">
+      <div className="w-full min-w-0 space-y-1 sm:space-y-1.5">
         {rowKeys.map((row) => {
           const byColumn = new Map(rows[row].map((seat) => [seat.column, seat]));
 
           return (
-            <div key={row} className="flex w-full items-center gap-1 sm:gap-1.5">
+            <div key={row} className="flex w-full min-w-0 items-center gap-1 sm:gap-1.5">
               <span className="w-3.5 shrink-0 text-center text-[9px] font-bold text-muted sm:w-5 sm:text-xs">
                 {row}
               </span>
@@ -157,6 +157,8 @@ export default function SeatMap({
                   const isSelected = selectedMap.has(seatNumber);
                   const isMine = highlightSet.has(seatNumber);
                   const canSelect = !readonly && !isBooked && Boolean(onToggle);
+                  const interactive = mode !== 'manage' && canSelect;
+                  const SeatEl = interactive ? 'button' : 'div';
 
                   let label = `${seatNumber} available`;
                   if (mode === 'manage' && isAllotted) label = `${seatNumber} allotted`;
@@ -167,22 +169,23 @@ export default function SeatMap({
                   else if (isSelected) label = `${seatNumber} selected ${selectedCategory}`;
 
                   return (
-                    <button
+                    <SeatEl
                       key={seatNumber}
-                      type="button"
+                      {...(interactive
+                        ? {
+                            type: 'button',
+                            'aria-pressed': isSelected || isMine,
+                            onClick: () => handleToggle(seatNumber),
+                          }
+                        : {
+                            role: 'img',
+                          })}
                       title={label}
                       aria-label={label}
-                      aria-pressed={isSelected || isMine}
-                      disabled={
-                        mode === 'manage'
-                          ? true
-                          : !canSelect && !readonly
-                      }
-                      onClick={() => handleToggle(seatNumber)}
                       className={cn(
-                        'aspect-square w-full touch-manipulation select-none rounded-[4px] border font-bold transition active:scale-90 sm:rounded-md',
-                        'flex items-center justify-center',
-                        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal',
+                        'flex aspect-square w-full select-none items-center justify-center rounded-[4px] border font-bold sm:rounded-md',
+                        interactive &&
+                          'touch-pan-y transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-teal',
                         seatLabelClass,
                         // Manage allotment view
                         mode === 'manage' &&
@@ -242,7 +245,7 @@ export default function SeatMap({
                     >
                       <span className="sm:hidden">{column}</span>
                       <span className="hidden sm:inline">{seatNumber}</span>
-                    </button>
+                    </SeatEl>
                   );
                 })}
               </div>

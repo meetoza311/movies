@@ -90,20 +90,27 @@ export default function ShowDetails() {
         subtitle={`${formatDate(show.showDate)} · ${formatTime(show.startTime)} – ${formatTime(show.endTime)}`}
         actions={
           <>
-            <Link to={`/verify`}>
-              <Button variant="outline">Open scanner</Button>
+            <Link to={`/verify`} className="min-w-0 flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">
+                Open scanner
+              </Button>
             </Link>
-            <Link to={`/shows/${show._id}/edit`}>
-              <Button variant="outline">Edit</Button>
+            <Link to={`/shows/${show._id}/edit`} className="min-w-0 flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">
+                Edit
+              </Button>
             </Link>
-            <Link to={`/bookings/new?showId=${show._id}&movieId=${movie?._id || movie}`}>
-              <Button>Book seats</Button>
+            <Link
+              to={`/bookings/new?showId=${show._id}&movieId=${movie?._id || movie}`}
+              className="min-w-0 flex-1 sm:flex-none"
+            >
+              <Button className="w-full">Book seats</Button>
             </Link>
           </>
         }
       />
 
-      <div className="mb-5 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-5 grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <Stat label="Total seats" value={stats.total ?? show.totalSeats} />
         <Stat label="Available" value={stats.available ?? '—'} />
         <Stat label="Booked" value={stats.booked ?? '—'} />
@@ -125,11 +132,11 @@ export default function ShowDetails() {
         </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-6">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="min-w-0 overflow-visible rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-6">
           <h2 className="mb-1 font-display text-lg font-bold">Manage seats / allotment</h2>
-          <p className="mb-4 text-xs text-muted">
-            Red = booked but not allotted · Gray = already allotted (done)
+          <p className="mb-4 text-xs leading-relaxed text-muted">
+            Red = booked but not allotted. Gray = already allotted.
           </p>
           {seatsQuery.isLoading ? (
             <Skeleton className="h-64" />
@@ -138,7 +145,7 @@ export default function ShowDetails() {
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div className="rounded-2xl border border-danger/20 bg-danger/5 p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h3 className="font-display text-lg font-bold text-ink">Remaining to allot</h3>
@@ -148,7 +155,7 @@ export default function ShowDetails() {
             {!gateQuery.isLoading && remaining.length === 0 && (
               <p className="text-sm text-muted">All booked tickets are allotted.</p>
             )}
-            <div className="max-h-80 space-y-2 overflow-y-auto">
+            <div className="space-y-2 lg:max-h-80 lg:overflow-y-auto">
               {remaining.map((b) => (
                 <div
                   key={b._id}
@@ -195,7 +202,7 @@ export default function ShowDetails() {
             {done.length === 0 && (
               <p className="text-sm text-muted">No tickets allotted yet.</p>
             )}
-            <div className="max-h-56 space-y-2 overflow-y-auto">
+            <div className="space-y-2 lg:max-h-56 lg:overflow-y-auto">
               {done.map((b) => (
                 <Link
                   key={b._id}
@@ -256,12 +263,12 @@ export default function ShowDetails() {
 
 function Stat({ label, value, small }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-3 shadow-sm sm:p-4">
+    <div className="min-w-0 rounded-2xl border border-line bg-surface p-3 shadow-sm sm:p-4">
       <p className="text-[10px] font-bold uppercase tracking-wide text-muted sm:text-xs">
         {label}
       </p>
       <p
-        className={`mt-1 font-display font-extrabold text-ink ${
+        className={`mt-1 break-words font-display font-extrabold text-ink ${
           small ? 'text-sm sm:text-base' : 'text-xl sm:text-2xl'
         }`}
       >

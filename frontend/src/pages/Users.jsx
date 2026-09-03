@@ -166,7 +166,7 @@ export default function Users() {
         />
       )}
 
-      <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface shadow-sm md:block">
+      <div className="hidden overflow-x-auto overflow-y-hidden rounded-2xl border border-line bg-surface shadow-sm md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-paper text-xs uppercase tracking-wide text-muted">
             <tr>

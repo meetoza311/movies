@@ -32,7 +32,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center px-4 py-10">
+    <div className="relative flex min-h-dvh flex-col justify-center overflow-x-clip px-4 py-10">
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{
@@ -40,7 +40,7 @@ export default function Login() {
             "linear-gradient(135deg, rgba(225,29,72,0.88), rgba(26,16,64,0.9)), url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=1600&q=80')",
         }}
       />
-      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl bg-surface shadow-2xl">
+      <div className="relative z-10 mx-auto w-full max-w-md overflow-hidden rounded-3xl bg-surface shadow-2xl">
         <div className="bg-gradient-to-r from-teal to-ink px-6 py-8 text-center text-white">
           <p className="text-3xl font-extrabold">
             Savan <span className="text-gold">Sentosa</span>

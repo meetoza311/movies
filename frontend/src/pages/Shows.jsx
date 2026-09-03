@@ -128,7 +128,7 @@ export default function Shows() {
         />
       )}
 
-      <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+      <div className="grid min-w-0 gap-3 sm:gap-4 md:grid-cols-2">
         {(data?.data || []).map((show) => (
           <ShowCard
             key={show._id}

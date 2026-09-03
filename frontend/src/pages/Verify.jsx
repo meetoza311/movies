@@ -30,7 +30,7 @@ export default function Verify() {
   const [manualCode, setManualCode] = useState('');
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState([]);
 
   const showsQuery = useQuery({
     queryKey: ['shows', { status: 'scheduled', limit: 50 }],
@@ -70,17 +70,24 @@ export default function Verify() {
   useEffect(() => {
     // Restart scanner context when show changes
     stopScanner();
-    setResult(null);
+    setResults([]);
     lastScanRef.current = '';
   }, [showId, stopScanner]);
 
-  useEffect(() => {
-    if (!result) return undefined;
-    const id = window.setTimeout(() => {
-      setResult(null);
+  function dismissResult(id) {
+    setResults((prev) => prev.filter((item) => item.id !== id));
+    toast.dismiss(id);
+  }
+
+  function pushResult(item) {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const next = { id, createdAt: Date.now(), ...item };
+    setResults((prev) => [next, ...prev].slice(0, 8));
+    window.setTimeout(() => {
+      setResults((prev) => prev.filter((r) => r.id !== id));
     }, 30_000);
-    return () => window.clearTimeout(id);
-  }, [result]);
+    return id;
+  }
 
   async function startScanner() {
     if (!showId) {
@@ -142,32 +149,43 @@ export default function Verify() {
         showId,
         method,
       });
-      setResult({ type: 'success', booking: res.data, message: res.message });
-      toast.success(`Ticket allotted: ${res.data.bookingNumber}`, { duration: 30_000 });
+      const toastId = pushResult({
+        type: 'success',
+        booking: res.data,
+        message: res.message,
+      });
+      toast.success(`Ticket allotted: ${res.data.bookingNumber}`, {
+        id: toastId,
+        duration: 30_000,
+      });
       setManualCode('');
       qc.invalidateQueries({ queryKey: ['gate', showId] });
       qc.invalidateQueries({ queryKey: ['bookings'] });
     } catch (err) {
       const booking = err.data?.data || null;
       if (err.errorCode === 'ALREADY_CHECKED_IN') {
-        setResult({
+        const toastId = pushResult({
           type: 'already',
           booking,
           message: err.message || 'Already scanned',
         });
         toast.error(
           `Already scanned / allotted: ${booking?.bookingNumber || code.trim()}`,
-          { duration: 30_000 }
+          { id: toastId, duration: 30_000 }
         );
       } else if (err.errorCode === 'WRONG_SHOW') {
-        setResult({ type: 'error', booking, message: err.message });
-        toast.error(err.message);
+        const toastId = pushResult({ type: 'error', booking, message: err.message });
+        toast.error(err.message, { id: toastId, duration: 30_000 });
       } else if (err.errorCode === 'BOOKING_CANCELLED') {
-        setResult({ type: 'error', booking, message: err.message });
-        toast.error(err.message);
+        const toastId = pushResult({ type: 'error', booking, message: err.message });
+        toast.error(err.message, { id: toastId, duration: 30_000 });
       } else {
-        setResult({ type: 'error', booking: null, message: err.message });
-        toast.error(err.message || 'Verify failed');
+        const toastId = pushResult({
+          type: 'error',
+          booking: null,
+          message: err.message,
+        });
+        toast.error(err.message || 'Verify failed', { id: toastId, duration: 30_000 });
       }
     } finally {
       setBusy(false);
@@ -183,7 +201,7 @@ export default function Verify() {
   const gateBookings = gateQuery.data?.data || [];
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto min-w-0 max-w-5xl">
       <PageHeader
         title="Verify / Scanner"
         subtitle="Scan QR or enter booking code — show-wise entry allotment"
@@ -221,7 +239,7 @@ export default function Verify() {
           Select a show to start scanning or manual allotment.
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-4">
             <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-2">
@@ -268,63 +286,74 @@ export default function Verify() {
               </Button>
             </form>
 
-            {result && (
-              <div
-                className={`rounded-2xl border p-4 shadow-sm ${
-                  result.type === 'success'
-                    ? 'border-success/30 bg-success/5'
-                    : result.type === 'already'
-                      ? 'border-warn/40 bg-gold-soft'
-                      : 'border-danger/30 bg-danger/5'
-                }`}
-              >
-                <div className="mb-2 flex items-center gap-2">
-                  {result.type === 'success' ? (
-                    <CheckCircle2 className="text-success" size={22} />
-                  ) : (
-                    <XCircle
-                      className={result.type === 'already' ? 'text-warn' : 'text-danger'}
-                      size={22}
-                    />
-                  )}
-                  <p className="font-bold text-ink">
-                    {result.type === 'success'
-                      ? 'Allotted'
-                      : result.type === 'already'
-                        ? 'Already scanned'
-                        : 'Not valid'}
-                  </p>
-                </div>
-                <p className="text-sm text-muted">{result.message}</p>
-                {result.booking && (
-                  <div className="mt-3 space-y-1 text-sm">
-                    <p>
-                      <strong>{result.booking.bookingNumber}</strong> ·{' '}
-                      {result.booking.customerName}
-                    </p>
-                    <p className="text-xs font-semibold text-muted">
-                      Ticket ID: {result.booking.bookingNumber}
-                    </p>
-                    <p className="text-muted">{result.booking.mobileNumber}</p>
-                    <p className="break-words">
-                      Seats: {seatSummary(result.booking.seats)}
-                    </p>
-                    <p className="font-semibold text-teal">
-                      {formatCurrency(result.booking.totalAmount)}
-                    </p>
-                    {result.booking.checkedInAt && (
-                      <p className="text-xs text-muted">
-                        Checked in: {new Date(result.booking.checkedInAt).toLocaleString('en-IN')}
-                        {result.booking.checkInMethod
-                          ? ` · ${result.booking.checkInMethod}`
-                          : ''}
-                      </p>
+            {results.length > 0 && (
+              <div className="space-y-2">
+                {results.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => dismissResult(item.id)}
+                    className={`w-full rounded-2xl border p-4 text-left shadow-sm ${
+                      item.type === 'success'
+                        ? 'border-success/30 bg-success/5'
+                        : item.type === 'already'
+                          ? 'border-warn/40 bg-gold-soft'
+                          : 'border-danger/30 bg-danger/5'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {item.type === 'success' ? (
+                          <CheckCircle2 className="text-success" size={22} />
+                        ) : (
+                          <XCircle
+                            className={item.type === 'already' ? 'text-warn' : 'text-danger'}
+                            size={22}
+                          />
+                        )}
+                        <p className="font-bold text-ink">
+                          {item.type === 'success'
+                            ? 'Allotted'
+                            : item.type === 'already'
+                              ? 'Already scanned'
+                              : 'Not valid'}
+                        </p>
+                      </div>
+                      <span className="text-xs font-semibold text-muted">Tap to close</span>
+                    </div>
+                    <p className="text-sm text-muted">{item.message}</p>
+                    {item.booking && (
+                      <div className="mt-3 space-y-1 text-sm">
+                        <p>
+                          <strong>{item.booking.bookingNumber}</strong> ·{' '}
+                          {item.booking.customerName}
+                        </p>
+                        <p className="text-xs font-semibold text-muted">
+                          Ticket ID: {item.booking.bookingNumber}
+                        </p>
+                        <p className="text-muted">{item.booking.mobileNumber}</p>
+                        <p className="break-words">
+                          Seats: {seatSummary(item.booking.seats)}
+                        </p>
+                        <p className="font-semibold text-teal">
+                          {formatCurrency(item.booking.totalAmount)}
+                        </p>
+                        {item.booking.checkedInAt && (
+                          <p className="text-xs text-muted">
+                            Checked in:{' '}
+                            {new Date(item.booking.checkedInAt).toLocaleString('en-IN')}
+                            {item.booking.checkInMethod
+                              ? ` · ${item.booking.checkInMethod}`
+                              : ''}
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
-                <p className="mt-3 text-xs text-muted">
-                  This message will hide automatically after 30 seconds.
-                </p>
+                    <p className="mt-3 text-xs text-muted">
+                      Hides in 30 seconds, or tap to remove now.
+                    </p>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -347,7 +376,7 @@ export default function Verify() {
               <p className="text-sm text-muted">No bookings for this show yet.</p>
             )}
 
-            <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+            <div className="space-y-2 lg:max-h-[28rem] lg:overflow-y-auto">
               {gateBookings.map((b) => (
                 <div
                   key={b._id}

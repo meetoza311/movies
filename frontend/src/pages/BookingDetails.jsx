@@ -155,11 +155,11 @@ export default function BookingDetails() {
         subtitle="Booking details and ticket"
         actions={
           <>
-            <Button variant="outline" onClick={() => setShowTicket(true)}>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setShowTicket(true)}>
               Print / Share
             </Button>
             {booking.bookingStatus === 'CONFIRMED' && !editing && (
-              <Button variant="secondary" onClick={() => setEditing(true)}>
+              <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => setEditing(true)}>
                 Edit
               </Button>
             )}
@@ -167,8 +167,8 @@ export default function BookingDetails() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-4 rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="min-w-0 space-y-4 overflow-visible rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-display text-xl font-bold">
               {typeof movie === 'object' ? movie.title : 'Movie'}

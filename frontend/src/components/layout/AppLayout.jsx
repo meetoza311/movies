@@ -51,7 +51,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[250px_1fr]">
+    <div className="min-h-dvh overflow-x-clip lg:grid lg:grid-cols-[250px_1fr]">
       <aside
         className={cn(
           'fixed inset-y-0 left-0 z-40 w-[min(280px,85vw)] bg-gradient-to-b from-ink to-ink-soft text-white shadow-xl transition-transform duration-200 lg:static lg:w-auto lg:translate-x-0',
@@ -148,7 +148,7 @@ export default function AppLayout() {
         />
       )}
 
-      <div className="min-w-0 pb-nav lg:pb-0">
+      <div className="min-w-0 overflow-x-clip pb-nav lg:pb-0">
         <header className="sticky top-0 z-20 border-b border-line/70 bg-paper/90 px-3 py-2.5 backdrop-blur sm:px-4 md:px-6 md:py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -178,7 +178,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="px-3 py-4 sm:px-4 md:px-6 md:py-6 lg:px-8">
+        <main className="min-w-0 px-3 py-4 sm:px-4 md:px-6 md:py-6 lg:px-8">
           <Outlet />
         </main>
       </div>

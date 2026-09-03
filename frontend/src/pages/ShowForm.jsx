@@ -92,7 +92,7 @@ export default function ShowForm() {
   if (isEdit && showQuery.error) return <ErrorState message={showQuery.error.message} />;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto min-w-0 max-w-3xl">
       <PageHeader
         title={isEdit ? 'Edit Show' : 'Add Show'}
         subtitle="Set timing, capacity, and Guest / Owner seat prices"

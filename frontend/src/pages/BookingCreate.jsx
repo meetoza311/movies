@@ -156,7 +156,7 @@ export default function BookingCreate() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto min-w-0 max-w-4xl">
       <PageHeader
         title="Create Booking"
         subtitle={step === 3 ? undefined : 'Walk-up ticket from the admin desk'}
@@ -164,7 +164,7 @@ export default function BookingCreate() {
       />
 
       <div
-        className={`mb-4 flex gap-1.5 overflow-x-auto pb-1 sm:mb-6 sm:flex-wrap sm:overflow-visible ${
+        className={`mb-4 flex gap-1.5 overflow-x-auto overflow-y-hidden pb-1 sm:mb-6 sm:flex-wrap sm:overflow-visible ${
           step === 3 ? 'hidden sm:flex' : ''
         }`}
       >
@@ -194,7 +194,8 @@ export default function BookingCreate() {
         className={`rounded-2xl border border-line bg-surface shadow-sm ${
           step === 3 ? 'p-3 sm:p-5' : 'p-5'
         }`}
-      >        {step === 0 && (
+      >
+        {step === 0 && (
           <Select
             label="Select Movie"
             value={movieId}
@@ -413,8 +414,21 @@ export default function BookingCreate() {
         <TicketView
           booking={ticket}
           onClose={() => {
+            const nextShowId = ticket.showId?._id || ticket.showId || showId;
+            const nextMovieId = ticket.movieId?._id || ticket.movieId || movieId;
             setTicket(null);
-            navigate(`/bookings/${ticket._id}`);
+            setSelectedSeats([]);
+            setCustomerName('');
+            setMobileNumber('');
+            setSeatCategory('GUEST');
+            setShowId(String(nextShowId || ''));
+            setMovieId(String(nextMovieId || ''));
+            setStep(3);
+            seatsQuery.refetch();
+            const params = new URLSearchParams();
+            if (nextShowId) params.set('showId', String(nextShowId));
+            if (nextMovieId) params.set('movieId', String(nextMovieId));
+            navigate(`/bookings/new?${params.toString()}`, { replace: true });
           }}
         />
       )}

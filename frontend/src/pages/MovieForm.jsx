@@ -79,7 +79,7 @@ export default function MovieForm() {
   if (isEdit && error) return <ErrorState message={error.message} />;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto min-w-0 max-w-2xl">
       <PageHeader
         title={isEdit ? 'Edit Movie' : 'Add Movie'}
         subtitle="Name, poster, description, and price (max 10 movies — oldest auto-removed)"

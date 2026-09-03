@@ -40,17 +40,19 @@ export default function MovieDetails() {
         subtitle="Movie details and scheduled shows"
         actions={
           <>
-            <Link to={`/movies/${movie._id}/edit`}>
-              <Button variant="outline">Edit</Button>
+            <Link to={`/movies/${movie._id}/edit`} className="min-w-0 flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">
+                Edit
+              </Button>
             </Link>
-            <Link to={`/shows/new?movieId=${movie._id}`}>
-              <Button>Add Show</Button>
+            <Link to={`/shows/new?movieId=${movie._id}`} className="min-w-0 flex-1 sm:flex-none">
+              <Button className="w-full">Add Show</Button>
             </Link>
           </>
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[280px_1fr]">
         <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
           {movie.posterImage ? (
             <img src={movie.posterImage} alt="" className="aspect-[2/3] w-full object-cover" />

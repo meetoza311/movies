@@ -29,13 +29,19 @@
     color: var(--color-ink);
     background: var(--color-paper);
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    height: auto;
     overflow-x: hidden;
+    overflow-x: clip;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   body {
     min-height: 100vh;
     min-height: 100dvh;
-    overflow-x: hidden;
+    height: auto;
+    overflow: visible;
     background:
       radial-gradient(900px 420px at 0% -5%, rgba(225, 29, 72, 0.12), transparent 55%),
       radial-gradient(800px 380px at 100% 0%, rgba(245, 158, 11, 0.16), transparent 50%),
@@ -46,6 +52,7 @@
   #root {
     min-height: 100vh;
     min-height: 100dvh;
+    overflow: visible;
   }
 
   /* Prevent iOS zoom on focus while keeping readable fields */
@@ -75,6 +82,11 @@
 
   .pb-nav {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .modal-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 
   .card-color-1 { background: linear-gradient(135deg, #fff1f2, #ffffff); border-color: #fda4af; }

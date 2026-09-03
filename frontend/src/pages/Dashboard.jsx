@@ -92,16 +92,16 @@ export default function Dashboard() {
     <div>
       <PageHeader title="Dashboard" subtitle="Savan Sentosa — live cinema overview" />
 
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         {cardItems.map((card, i) => (
           <div
             key={card.label}
-            className={`rounded-2xl border p-3 shadow-sm sm:p-4 ${CARD_COLORS[i % CARD_COLORS.length]}`}
+            className={`min-w-0 rounded-2xl border p-3 shadow-sm sm:p-4 ${CARD_COLORS[i % CARD_COLORS.length]}`}
           >
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted sm:text-xs">
               {card.label}
             </p>
-            <p className="mt-1.5 text-xl font-extrabold text-ink sm:mt-2 sm:text-3xl">
+            <p className="mt-1.5 break-words text-xl font-extrabold text-ink sm:mt-2 sm:text-3xl">
               {card.value}
             </p>
           </div>
@@ -211,10 +211,10 @@ export default function Dashboard() {
         )}
       </section>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+      <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-2">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Bookings (7 days)</h2>
-          <div className="mt-4 h-56 sm:h-64">
+          <div className="mt-4 h-56 min-w-0 overflow-hidden sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.bookingsByDay}>
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -226,9 +226,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Revenue (7 days)</h2>
-          <div className="mt-4 h-56 sm:h-64">
+          <div className="mt-4 h-56 min-w-0 overflow-hidden sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.revenueByDay}>
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -240,9 +240,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Seat occupancy</h2>
-          <div className="mt-4 h-56 sm:h-64">
+          <div className="mt-4 h-56 min-w-0 overflow-hidden sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={occupancy} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>

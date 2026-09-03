@@ -398,8 +398,8 @@ export default function TicketView({ booking, onClose }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-4">
       <div className="no-print absolute inset-0" onClick={onClose} aria-hidden />
 
-      <div className="relative z-10 flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl sm:rounded-2xl">
-        <div className="no-print flex items-center justify-between border-b border-line px-4 py-3 sm:px-5">
+      <div className="relative z-10 flex max-h-[95dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-surface shadow-2xl sm:rounded-2xl">
+        <div className="no-print flex shrink-0 items-center justify-between border-b border-line px-4 py-3 sm:px-5">
           <div>
             <p className="text-sm font-bold text-ink">Ticket ready</p>
             <p className="text-xs text-muted">QR · Download · Share · Print</p>
@@ -414,7 +414,7 @@ export default function TicketView({ booking, onClose }) {
           </button>
         </div>
 
-        <div className="overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto modal-scroll">
           <div className="ticket-print bg-white">
             <div className="bg-gradient-to-br from-ink via-ink-soft to-teal px-6 py-6 text-center text-white">
               <p className="text-2xl font-extrabold tracking-wide">
@@ -479,7 +479,7 @@ export default function TicketView({ booking, onClose }) {
           </div>
         </div>
 
-        <div className="no-print space-y-2 border-t border-line px-4 py-3 sm:px-5 sm:py-4">
+        <div className="no-print shrink-0 space-y-2 border-t border-line px-4 py-3 safe-bottom sm:px-5 sm:py-4">
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"

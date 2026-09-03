@@ -18,7 +18,7 @@ export function Modal({ open, title, children, onClose, footer }) {
             ✕
           </Button>
         </div>
-        <div className="overflow-y-auto px-4 py-4 text-sm text-muted sm:px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm text-muted modal-scroll sm:px-5">
           {children}
         </div>
         {footer && (

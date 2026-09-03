@@ -87,7 +87,7 @@ export default function Movies() {
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-72 sm:h-96" />
           ))}
@@ -108,7 +108,7 @@ export default function Movies() {
         />
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {(data?.data || []).map((movie) => (
           <MovieCard
             key={movie._id}
