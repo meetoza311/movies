@@ -74,6 +74,14 @@ export default function Verify() {
     lastScanRef.current = '';
   }, [showId, stopScanner]);
 
+  useEffect(() => {
+    if (!result) return undefined;
+    const id = window.setTimeout(() => {
+      setResult(null);
+    }, 30_000);
+    return () => window.clearTimeout(id);
+  }, [result]);
+
   async function startScanner() {
     if (!showId) {
       toast.error('Select a show first');
@@ -135,7 +143,7 @@ export default function Verify() {
         method,
       });
       setResult({ type: 'success', booking: res.data, message: res.message });
-      toast.success('Ticket allotted');
+      toast.success(`Ticket allotted: ${res.data.bookingNumber}`, { duration: 30_000 });
       setManualCode('');
       qc.invalidateQueries({ queryKey: ['gate', showId] });
       qc.invalidateQueries({ queryKey: ['bookings'] });
@@ -147,7 +155,10 @@ export default function Verify() {
           booking,
           message: err.message || 'Already scanned',
         });
-        toast.error('Already scanned / allotted');
+        toast.error(
+          `Already scanned / allotted: ${booking?.bookingNumber || code.trim()}`,
+          { duration: 30_000 }
+        );
       } else if (err.errorCode === 'WRONG_SHOW') {
         setResult({ type: 'error', booking, message: err.message });
         toast.error(err.message);
@@ -291,6 +302,9 @@ export default function Verify() {
                       <strong>{result.booking.bookingNumber}</strong> ·{' '}
                       {result.booking.customerName}
                     </p>
+                    <p className="text-xs font-semibold text-muted">
+                      Ticket ID: {result.booking.bookingNumber}
+                    </p>
                     <p className="text-muted">{result.booking.mobileNumber}</p>
                     <p className="break-words">
                       Seats: {seatSummary(result.booking.seats)}
@@ -308,6 +322,9 @@ export default function Verify() {
                     )}
                   </div>
                 )}
+                <p className="mt-3 text-xs text-muted">
+                  This message will hide automatically after 30 seconds.
+                </p>
               </div>
             )}
           </div>
