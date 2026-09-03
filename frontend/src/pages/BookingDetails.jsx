@@ -43,7 +43,9 @@ export default function BookingDetails() {
     if (booking) {
       setCustomerName(booking.customerName);
       setMobileNumber(booking.mobileNumber);
-      setSelectedSeats((booking.seats || []).map((s) => s.seatNumber));
+      setSelectedSeats(
+        (booking.seats || []).map((s) => String(s.seatNumber).toUpperCase().trim())
+      );
     }
   }, [booking]);
 
@@ -86,30 +88,34 @@ export default function BookingDetails() {
   const show = booking.showId;
 
   function toggleSeat(seatNumber) {
+    const next = String(seatNumber).toUpperCase().trim();
     setSelectedSeats((prev) =>
-      prev.includes(seatNumber)
-        ? prev.filter((s) => s !== seatNumber)
-        : [...prev, seatNumber]
+      prev.includes(next)
+        ? prev.filter((s) => s !== next)
+        : [...prev, next]
     );
   }
 
   // When editing, treat current booking seats as selectable even if BOOKED
   const editableSeats = (seatsQuery.data?.data?.seats || []).map((seat) => {
+    const seatNumber = String(seat.seatNumber).toUpperCase().trim();
     if (
       seat.status === 'BOOKED' &&
-      selectedSeats.includes(seat.seatNumber) &&
+      selectedSeats.includes(seatNumber) &&
       String(seat.bookingId) === String(booking._id)
     ) {
-      return { ...seat, status: 'AVAILABLE' };
+      return { ...seat, seatNumber, status: 'AVAILABLE' };
     }
     if (
       seat.status === 'BOOKED' &&
-      (booking.seats || []).some((s) => s.seatNumber === seat.seatNumber) &&
+      (booking.seats || []).some(
+        (s) => String(s.seatNumber).toUpperCase().trim() === seatNumber
+      ) &&
       String(seat.bookingId) === String(booking._id)
     ) {
-      return { ...seat, status: 'AVAILABLE' };
+      return { ...seat, seatNumber, status: 'AVAILABLE' };
     }
-    return seat;
+    return { ...seat, seatNumber };
   });
 
   return (

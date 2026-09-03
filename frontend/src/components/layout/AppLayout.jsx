@@ -128,7 +128,7 @@ export default function AppLayout() {
         />
       )}
 
-      <div className="min-w-0 pb-20 lg:pb-0">
+      <div className="min-w-0 pb-24 lg:pb-0">
         <header className="sticky top-0 z-20 border-b border-line/70 bg-paper/90 px-4 py-3 backdrop-blur md:px-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">

@@ -105,10 +105,11 @@ export default function BookingCreate() {
   });
 
   function toggleSeat(seatNumber) {
+    const next = String(seatNumber).toUpperCase().trim();
     setSelectedSeats((prev) =>
-      prev.includes(seatNumber)
-        ? prev.filter((s) => s !== seatNumber)
-        : [...prev, seatNumber]
+      prev.includes(next)
+        ? prev.filter((s) => s !== next)
+        : [...prev, next]
     );
   }
 
@@ -138,14 +139,19 @@ export default function BookingCreate() {
     <div className="mx-auto max-w-4xl">
       <PageHeader
         title="Create Booking"
-        subtitle="Walk-up ticket from the admin desk"
+        subtitle={step === 3 ? undefined : 'Walk-up ticket from the admin desk'}
+        className={step === 3 ? '!mb-2 sm:!mb-6' : undefined}
       />
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div
+        className={`mb-4 flex gap-1.5 overflow-x-auto pb-1 sm:mb-6 sm:flex-wrap sm:overflow-visible ${
+          step === 3 ? 'hidden sm:flex' : ''
+        }`}
+      >
         {STEPS.map((label, index) => (
           <div
             key={label}
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold sm:px-3 sm:text-xs ${
               index === step
                 ? 'bg-teal text-white'
                 : index < step
@@ -158,8 +164,17 @@ export default function BookingCreate() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
-        {step === 0 && (
+      {step === 3 && (
+        <p className="mb-3 text-center text-sm font-semibold text-ink sm:hidden">
+          Tap seats to select
+        </p>
+      )}
+
+      <div
+        className={`rounded-2xl border border-line bg-surface shadow-sm ${
+          step === 3 ? 'p-3 sm:p-5' : 'p-5'
+        }`}
+      >        {step === 0 && (
           <Select
             label="Select Movie"
             value={movieId}
@@ -240,13 +255,18 @@ export default function BookingCreate() {
                 onToggle={toggleSeat}
               />
             )}
-            <div className="mt-4 rounded-xl bg-paper p-4 text-sm">
-              <p>
-                Selected: <strong>{selectedSeats.join(', ') || 'None'}</strong>
-              </p>
-              <p>
-                Price: {formatCurrency(seatPrice)} × {selectedSeats.length} ={' '}
-                <strong>{formatCurrency(total)}</strong>
+            <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2.5 text-xs sm:mt-4 sm:px-4 sm:py-3 sm:text-sm">
+              <div className="min-w-0">
+                <p className="truncate">
+                  <span className="text-muted">Seats </span>
+                  <strong>{selectedSeats.join(', ') || 'None'}</strong>
+                </p>
+                <p className="text-muted sm:hidden">
+                  {selectedSeats.length} × {formatCurrency(seatPrice)}
+                </p>
+              </div>
+              <p className="shrink-0 font-display text-lg font-extrabold text-teal sm:text-xl">
+                {formatCurrency(total)}
               </p>
             </div>
           </div>
@@ -293,7 +313,7 @@ export default function BookingCreate() {
           </div>
         )}
 
-        <div className="mt-6 flex flex-wrap justify-between gap-2">
+        <div className={`mt-5 flex flex-wrap justify-between gap-2 sm:mt-6 ${step === 3 ? 'pb-1' : 'pb-2'}`}>
           <Button
             type="button"
             variant="outline"
@@ -303,8 +323,8 @@ export default function BookingCreate() {
             Back
           </Button>
           {step < STEPS.length - 1 ? (
-            <Button type="button" onClick={handleNext}>
-              Continue
+            <Button type="button" onClick={handleNext} className="min-w-28">
+              {step === 3 ? `Continue${selectedSeats.length ? ` (${selectedSeats.length})` : ''}` : 'Continue'}
             </Button>
           ) : (
             <Button

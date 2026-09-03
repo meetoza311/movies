@@ -1,3 +1,5 @@
+import { cn } from '../../utils/format';
+
 export function EmptyState({ title, description, action }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface/70 px-6 py-12 text-center sm:py-16">
@@ -32,9 +34,14 @@ export function Skeleton({ className = '' }) {
   return <div className={`animate-pulse rounded-xl bg-line/70 ${className}`} />;
 }
 
-export function PageHeader({ title, subtitle, actions }) {
+export function PageHeader({ title, subtitle, actions, className }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+    <div
+      className={cn(
+        'mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between',
+        className
+      )}
+    >
       <div>
         <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
