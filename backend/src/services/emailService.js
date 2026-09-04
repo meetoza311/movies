@@ -68,6 +68,8 @@ function buildEmailBodies(booking) {
     `Customer: ${booking.customerName}`,
     `Mobile: ${booking.mobileNumber}`,
     booking.customerEmail ? `Email: ${booking.customerEmail}` : null,
+    booking.blockNo ? `Block No: ${booking.blockNo}` : null,
+    booking.notes ? `Notes: ${booking.notes}` : null,
     `Seats: ${seats.join(', ') || '-'}`,
     `Guest seats: ${guestCount}`,
     `Owner seats: ${ownerCount}`,
@@ -91,6 +93,21 @@ function buildEmailBodies(booking) {
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
       <tr><td style="padding:8px 0;color:#78716c;">Customer</td><td style="padding:8px 0;text-align:right;font-weight:700;">${booking.customerName}</td></tr>
       <tr><td style="padding:8px 0;color:#78716c;">Mobile</td><td style="padding:8px 0;text-align:right;font-weight:700;">${booking.mobileNumber}</td></tr>
+      ${
+        booking.customerEmail
+          ? `<tr><td style="padding:8px 0;color:#78716c;">Email</td><td style="padding:8px 0;text-align:right;font-weight:700;">${booking.customerEmail}</td></tr>`
+          : ''
+      }
+      ${
+        booking.blockNo
+          ? `<tr><td style="padding:8px 0;color:#78716c;">Block No</td><td style="padding:8px 0;text-align:right;font-weight:700;">${booking.blockNo}</td></tr>`
+          : ''
+      }
+      ${
+        booking.notes
+          ? `<tr><td style="padding:8px 0;color:#78716c;">Notes</td><td style="padding:8px 0;text-align:right;font-weight:700;">${booking.notes}</td></tr>`
+          : ''
+      }
       <tr><td style="padding:8px 0;color:#78716c;">Seats</td><td style="padding:8px 0;text-align:right;font-weight:700;">${seats.join(', ') || '-'}</td></tr>
       <tr><td style="padding:8px 0;color:#78716c;">Guest / Owner</td><td style="padding:8px 0;text-align:right;font-weight:700;">${guestCount} / ${ownerCount}</td></tr>
     </table>
@@ -112,6 +129,8 @@ function buildEmailBodies(booking) {
       customerName: booking.customerName,
       customerEmail: booking.customerEmail || '',
       mobileNumber: booking.mobileNumber,
+      blockNo: booking.blockNo || '',
+      notes: booking.notes || '',
       movieTitle,
       showDate: formatDate(show.showDate),
       showTime: formatTime(show.startTime),

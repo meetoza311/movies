@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -13,6 +14,7 @@ import {
 } from 'recharts';
 import { dashboardApi } from '../services/dashboardApi';
 import { PageHeader, Skeleton, ErrorState } from '../components/common/States';
+import { Select } from '../components/common/Input';
 import { formatCurrency, formatDate, formatTime } from '../utils/format';
 import { Badge } from '../components/common/Badge';
 
@@ -47,13 +49,90 @@ function OccupancyBar({ available, booked, total }) {
   );
 }
 
+function StatCard({ label, value, colorClass, to }) {
+  const inner = (
+    <>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted sm:text-xs">
+        {label}
+      </p>
+      <p className="mt-1.5 break-words text-xl font-extrabold text-ink sm:mt-2 sm:text-3xl">
+        {value}
+      </p>
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className={`min-w-0 rounded-2xl border p-3 shadow-sm transition hover:border-teal hover:shadow-md sm:p-4 ${colorClass}`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={`min-w-0 rounded-2xl border p-3 shadow-sm sm:p-4 ${colorClass}`}>
+      {inner}
+    </div>
+  );
+}
+
 export default function Dashboard() {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: () => dashboardApi.stats(),
+  const [movieFilter, setMovieFilter] = useState('');
+  const [showFilter, setShowFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: [
+      'dashboard',
+      movieFilter || 'all',
+      showFilter || 'all',
+      statusFilter || 'all',
+    ],
+    queryFn: () =>
+      dashboardApi.stats({
+        movieId: movieFilter || undefined,
+        showId: showFilter || undefined,
+        status: statusFilter || undefined,
+      }),
+    placeholderData: (prev) => prev,
   });
 
-  if (isLoading) {
+  const filterOptions = data?.data?.filterOptions || {
+    movies: [],
+    shows: [],
+    statuses: [],
+  };
+  const movieShows = data?.data?.movieShowOccupancy || [];
+
+  const showOptions = useMemo(() => {
+    let list = filterOptions.shows || [];
+    // Only narrow shows by selected movie — status must not hide movie/show options
+    if (movieFilter) {
+      list = list.filter((s) => String(s.movieId) === String(movieFilter));
+    }
+    return list;
+  }, [filterOptions.shows, movieFilter]);
+
+  const filterLabel = useMemo(() => {
+    const parts = [];
+    if (showFilter) {
+      const show = (filterOptions.shows || []).find((s) => String(s.id) === String(showFilter));
+      parts.push(show?.label || 'Selected show');
+    } else if (movieFilter) {
+      const movie = (filterOptions.movies || []).find((m) => String(m.id) === String(movieFilter));
+      parts.push(movie?.title || 'Selected movie');
+    } else {
+      parts.push('All movies');
+    }
+    if (statusFilter) parts.push(statusFilter);
+    else parts.push('all statuses');
+    return parts.join(' · ');
+  }, [movieFilter, showFilter, statusFilter, filterOptions]);
+
+  if (isLoading && !data) {
     return (
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
@@ -63,21 +142,20 @@ export default function Dashboard() {
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return <ErrorState message={error.message} onRetry={refetch} />;
   }
 
   const cards = data.data.cards;
   const charts = data.data.charts;
   const recent = data.data.recentBookings || [];
-  const movieShows = data.data.movieShowOccupancy || [];
 
   const cardItems = [
-    { label: 'Total Movies', value: cards.totalMovies },
-    { label: 'Upcoming Movies', value: cards.upcomingMovies },
-    { label: "Today's Shows", value: cards.todaysShows },
-    { label: 'Total Bookings', value: cards.totalBookings },
-    { label: "Today's Bookings", value: cards.todaysBookings },
+    { label: 'Total Movies', value: cards.totalMovies, to: '/movies' },
+    { label: 'Upcoming Movies', value: cards.upcomingMovies, to: '/movies' },
+    { label: "Today's Shows", value: cards.todaysShows, to: '/shows' },
+    { label: 'Total Bookings', value: cards.totalBookings, to: '/bookings' },
+    { label: "Today's Bookings", value: cards.todaysBookings, to: '/bookings' },
     { label: 'Total Revenue', value: formatCurrency(cards.totalRevenue) },
     { label: 'Available Seats', value: cards.availableSeats },
     { label: 'Booked Seats', value: cards.bookedSeats },
@@ -89,31 +167,105 @@ export default function Dashboard() {
   ];
 
   return (
-    <div>
-      <PageHeader title="Dashboard" subtitle="Savan Sentosa — live cinema overview" />
+    <div className={isFetching ? 'opacity-95' : undefined}>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Savan Sentosa — live cinema overview"
+      />
+
+      <div className="mb-4 rounded-2xl border border-line bg-surface p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-sm font-bold text-ink">Filter dashboard</p>
+            <p className="text-xs text-muted">
+              Applies to cards, shows, revenue, bookings, seats & recent list · {filterLabel}
+            </p>
+          </div>
+          {(movieFilter || showFilter || statusFilter) && (
+            <button
+              type="button"
+              className="text-xs font-bold text-teal"
+              onClick={() => {
+                setMovieFilter('');
+                setShowFilter('');
+                setStatusFilter('');
+              }}
+            >
+              Reset to all
+            </button>
+          )}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Select
+            label="Movie"
+            value={movieFilter}
+            onChange={(e) => {
+              setMovieFilter(e.target.value);
+              setShowFilter('');
+            }}
+          >
+            <option value="">All movies</option>
+            {(filterOptions.movies || []).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.title}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Show status"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+            }}
+          >
+            <option value="">All statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </Select>
+          <Select
+            label="Show"
+            value={showFilter}
+            onChange={(e) => {
+              const nextShow = e.target.value;
+              setShowFilter(nextShow);
+              if (nextShow) {
+                const match = (filterOptions.shows || []).find(
+                  (s) => String(s.id) === String(nextShow)
+                );
+                if (match?.movieId) setMovieFilter(String(match.movieId));
+              }
+            }}
+          >
+            <option value="">All shows</option>
+            {showOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
 
       <div className="grid min-w-0 grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
         {cardItems.map((card, i) => (
-          <div
+          <StatCard
             key={card.label}
-            className={`min-w-0 rounded-2xl border p-3 shadow-sm sm:p-4 ${CARD_COLORS[i % CARD_COLORS.length]}`}
-          >
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted sm:text-xs">
-              {card.label}
-            </p>
-            <p className="mt-1.5 break-words text-xl font-extrabold text-ink sm:mt-2 sm:text-3xl">
-              {card.value}
-            </p>
-          </div>
+            label={card.label}
+            value={card.value}
+            to={card.to}
+            colorClass={CARD_COLORS[i % CARD_COLORS.length]}
+          />
         ))}
       </div>
 
-      {/* Movie-wise shows with seat availability */}
       <section className="mt-6">
-        <div className="mb-3 flex items-end justify-between gap-2">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-bold text-ink sm:text-xl">Movies & show seats</h2>
-            <p className="text-sm text-muted">Next 7 days — available vs filled seats</p>
+            <p className="text-sm text-muted">
+              Scheduled, completed & cancelled — filtered list
+            </p>
           </div>
           <Link to="/shows" className="text-sm font-bold text-teal">
             All shows
@@ -122,7 +274,7 @@ export default function Dashboard() {
 
         {movieShows.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-line bg-surface p-8 text-center text-sm text-muted">
-            No upcoming shows in the next 7 days.
+            No shows match this filter.
           </div>
         ) : (
           <div className="space-y-4">
@@ -146,14 +298,12 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Link
-                        to={`/movies/${movie.movieId}`}
-                        className="truncate text-base font-bold text-ink hover:text-teal sm:text-lg"
-                      >
-                        {movie.title}
-                      </Link>
-                    </div>
+                    <Link
+                      to={`/movies/${movie.movieId}`}
+                      className="truncate text-base font-bold text-ink hover:text-teal sm:text-lg"
+                    >
+                      {movie.title}
+                    </Link>
                     <p className="mt-1 text-xs text-muted sm:text-sm">
                       {movie.shows.length} show(s)
                     </p>
@@ -174,6 +324,9 @@ export default function Dashboard() {
                           </p>
                           <p className="text-lg font-extrabold text-teal">
                             {formatTime(show.startTime)}
+                          </p>
+                          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                            {show.status || 'scheduled'}
                           </p>
                         </div>
                         <p className="text-sm font-bold text-gold">
@@ -214,6 +367,7 @@ export default function Dashboard() {
       <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-2">
         <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Bookings (7 days)</h2>
+          <p className="text-xs text-muted">{filterLabel}</p>
           <div className="mt-4 h-56 min-w-0 overflow-hidden sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.bookingsByDay}>
@@ -228,6 +382,7 @@ export default function Dashboard() {
 
         <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Revenue (7 days)</h2>
+          <p className="text-xs text-muted">{filterLabel}</p>
           <div className="mt-4 h-56 min-w-0 overflow-hidden sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={charts.revenueByDay}>
@@ -242,6 +397,7 @@ export default function Dashboard() {
 
         <div className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Seat occupancy</h2>
+          <p className="text-xs text-muted">{filterLabel}</p>
           <div className="mt-4 h-56 min-w-0 overflow-hidden sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -258,14 +414,16 @@ export default function Dashboard() {
 
         <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
           <h2 className="text-lg font-bold">Top movies</h2>
+          <p className="text-xs text-muted">{filterLabel}</p>
           <div className="mt-4 space-y-3">
             {(charts.moviePerformance || []).length === 0 && (
-              <p className="text-sm text-muted">No confirmed bookings yet.</p>
+              <p className="text-sm text-muted">No confirmed bookings for this filter.</p>
             )}
             {(charts.moviePerformance || []).map((m) => (
-              <div
+              <Link
                 key={m.movieId}
-                className="flex items-center justify-between rounded-xl bg-paper px-3 py-2"
+                to={`/movies/${m.movieId}`}
+                className="flex items-center justify-between rounded-xl bg-paper px-3 py-2 transition hover:bg-paper/80"
               >
                 <div>
                   <p className="font-semibold text-ink">{m.title || 'Unknown'}</p>
@@ -274,7 +432,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <p className="font-bold text-teal">{formatCurrency(m.revenue)}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -282,13 +440,18 @@ export default function Dashboard() {
 
       <div className="mt-6 rounded-2xl border border-line bg-surface p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Recent bookings</h2>
+          <div>
+            <h2 className="text-lg font-bold">Recent bookings</h2>
+            <p className="text-xs text-muted">{filterLabel}</p>
+          </div>
           <Link to="/bookings" className="text-sm font-bold text-teal">
             View all
           </Link>
         </div>
         <div className="space-y-2">
-          {recent.length === 0 && <p className="text-sm text-muted">No bookings yet.</p>}
+          {recent.length === 0 && (
+            <p className="text-sm text-muted">No bookings for this filter.</p>
+          )}
           {recent.map((b) => (
             <Link
               key={b._id}
@@ -299,6 +462,7 @@ export default function Dashboard() {
                 <p className="font-semibold text-ink">{b.bookingNumber}</p>
                 <p className="text-sm text-muted">
                   {b.movieId?.title} · {b.customerName}
+                  {b.blockNo ? ` · Block ${b.blockNo}` : ''}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-sm">

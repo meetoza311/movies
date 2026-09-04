@@ -134,10 +134,26 @@ async function withSafeSession(work) {
   }
 }
 
-async function createBooking({ showId, customerName, mobileNumber, customerEmail, seats }) {
+function sanitizeOptionalText(value, maxLen) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  return text.slice(0, maxLen);
+}
+
+async function createBooking({
+  showId,
+  customerName,
+  mobileNumber,
+  customerEmail,
+  blockNo,
+  notes,
+  seats,
+}) {
   const { name, mobile, email } = validateCustomer(customerName, mobileNumber, customerEmail, {
     requireEmail: true,
   });
+  const block = sanitizeOptionalText(blockNo, 80);
+  const comment = sanitizeOptionalText(notes, 500);
 
   return withSafeSession(async (session) => {
     const showQuery = Show.findById(showId);
@@ -177,6 +193,8 @@ async function createBooking({ showId, customerName, mobileNumber, customerEmail
         customerName: name,
         mobileNumber: mobile,
         customerEmail: email,
+        blockNo: block,
+        notes: comment,
         seats: seatItems,
         guestPrice: prices.guestPrice,
         ownerPrice: prices.ownerPrice,
@@ -232,7 +250,10 @@ async function createBooking({ showId, customerName, mobileNumber, customerEmail
   });
 }
 
-async function updateBooking(bookingId, { customerName, mobileNumber, customerEmail, seats }) {
+async function updateBooking(
+  bookingId,
+  { customerName, mobileNumber, customerEmail, blockNo, notes, seats }
+) {
   return withSafeSession(async (session) => {
     const bookingQuery = Booking.findById(bookingId);
     if (session) bookingQuery.session(session);
@@ -259,6 +280,13 @@ async function updateBooking(bookingId, { customerName, mobileNumber, customerEm
       booking.customerName = name;
       booking.mobileNumber = mobile;
       booking.customerEmail = email;
+    }
+
+    if (blockNo !== undefined) {
+      booking.blockNo = sanitizeOptionalText(blockNo, 80);
+    }
+    if (notes !== undefined) {
+      booking.notes = sanitizeOptionalText(notes, 500);
     }
 
     if (seats !== undefined) {
@@ -455,6 +483,9 @@ function serializeGateBooking(booking) {
     scanToken: obj.scanToken,
     customerName: obj.customerName,
     mobileNumber: obj.mobileNumber,
+    customerEmail: obj.customerEmail,
+    blockNo: obj.blockNo,
+    notes: obj.notes,
     seats: obj.seats,
     numberOfSeats: obj.numberOfSeats,
     totalAmount: obj.totalAmount,

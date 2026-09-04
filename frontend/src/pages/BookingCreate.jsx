@@ -9,7 +9,7 @@ import SeatMap from '../components/seats/SeatMap';
 import TicketView from '../components/bookings/TicketView';
 import { PageHeader, Skeleton } from '../components/common/States';
 import { Button } from '../components/common/Button';
-import { Input, Select } from '../components/common/Input';
+import { Input, Select, TextArea } from '../components/common/Input';
 import { formatCurrency, formatDate, formatTime } from '../utils/format';
 
 const STEPS = [
@@ -35,6 +35,8 @@ export default function BookingCreate() {
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [blockNo, setBlockNo] = useState('');
+  const [notes, setNotes] = useState('');
   const [ticket, setTicket] = useState(null);
 
   const moviesQuery = useQuery({
@@ -107,6 +109,8 @@ export default function BookingCreate() {
         customerName,
         mobileNumber,
         customerEmail,
+        blockNo,
+        notes,
         seats: selectedSeats,
       }),
     onSuccess: (res) => {
@@ -350,6 +354,22 @@ export default function BookingCreate() {
                 required
               />
             </div>
+            <Input
+              label="Block no"
+              value={blockNo}
+              onChange={(e) => setBlockNo(e.target.value)}
+              placeholder="e.g. A-102 / Tower 3"
+            />
+            <div className="sm:col-span-2">
+              <TextArea
+                label="Notes / comment"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Optional details for this customer"
+                rows={3}
+                maxLength={500}
+              />
+            </div>
           </div>
         )}
 
@@ -376,6 +396,8 @@ export default function BookingCreate() {
             <SummaryRow label="Customer" value={customerName} />
             <SummaryRow label="Mobile" value={mobileNumber} />
             <SummaryRow label="Email" value={customerEmail} />
+            <SummaryRow label="Block no" value={blockNo || '—'} />
+            <SummaryRow label="Notes" value={notes || '—'} />
             <div className="rounded-xl bg-paper px-4 py-3">
               <p className="text-xs font-bold uppercase tracking-wide text-muted">Total</p>
               <p className="font-display text-3xl font-extrabold text-teal">
@@ -442,6 +464,8 @@ export default function BookingCreate() {
             setCustomerName('');
             setMobileNumber('');
             setCustomerEmail('');
+            setBlockNo('');
+            setNotes('');
             setSeatCategory('GUEST');
             setShowId(String(nextShowId || ''));
             setMovieId(String(nextMovieId || ''));

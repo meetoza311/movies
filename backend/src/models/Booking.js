@@ -64,6 +64,20 @@ const bookingSchema = new mongoose.Schema(
       lowercase: true,
       default: '',
     },
+    /** Society / flat / block identifier (optional) */
+    blockNo: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: '',
+    },
+    /** Free-text note / comment for this customer (optional) */
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: '',
+    },
     seats: {
       type: [bookingSeatSchema],
       required: true,

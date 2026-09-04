@@ -122,9 +122,16 @@ async function buildTicketPdfBuffer(booking) {
     field('Customer', booking.customerName);
     field('Mobile', booking.mobileNumber);
     if (booking.customerEmail) field('Email', booking.customerEmail);
+    if (booking.blockNo) field('Block No', booking.blockNo);
+    if (booking.notes) field('Notes', booking.notes);
     field('Seats', seats.join(', ') || '-');
     field('Guest', `${guestCount} x ${money(booking.guestPrice ?? booking.seatPrice ?? 80)}`);
     field('Owner', `${ownerCount} x ${money(booking.ownerPrice ?? 50)}`);
+    field(
+      'Entry',
+      booking.checkInStatus === 'CHECKED_IN' ? 'Already allotted' : 'Valid for entry'
+    );
+    field('Booking ID', booking.bookingNumber || '-');
 
     doc.roundedRect(left, y, contentW, 42, 6).fill('#e11d48');
     doc.fillColor('#ffffff').fontSize(9).font('Helvetica');

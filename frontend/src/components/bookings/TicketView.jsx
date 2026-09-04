@@ -112,6 +112,10 @@ export default function TicketView({ booking, onClose }) {
     `Date: ${formatDate(show?.showDate)}`,
     `Time: ${formatTime(show?.startTime)}`,
     `Customer: ${booking.customerName}`,
+    `Mobile: ${booking.mobileNumber}`,
+    booking.customerEmail ? `Email: ${booking.customerEmail}` : null,
+    booking.blockNo ? `Block: ${booking.blockNo}` : null,
+    booking.notes ? `Notes: ${booking.notes}` : null,
     `Seats: ${seatsText}`,
     `Guest: ${guestCount} · Owner: ${ownerCount}`,
     `Total: ${formatCurrency(booking.totalAmount)}`,
@@ -224,6 +228,15 @@ export default function TicketView({ booking, onClose }) {
 
     drawField('Customer', booking.customerName || '-');
     drawField('Mobile', booking.mobileNumber || '-');
+    if (booking.customerEmail) {
+      drawField('Email', booking.customerEmail);
+    }
+    if (booking.blockNo) {
+      drawField('Block No', booking.blockNo);
+    }
+    if (booking.notes) {
+      drawField('Notes', booking.notes, { fontSize: 10, lineH: 5 });
+    }
 
     // Seats as wrapped list (readable when many)
     const seatNums = (booking.seats || []).map((s) => {
@@ -245,6 +258,7 @@ export default function TicketView({ booking, onClose }) {
       'Entry',
       booking.checkInStatus === 'CHECKED_IN' ? 'Already allotted' : 'Valid for entry'
     );
+    drawField('Booking ID', booking.bookingNumber || '-');
 
     // Total bar
     y = ensureSpace(pdf, y, 24, margin);
@@ -489,6 +503,8 @@ export default function TicketView({ booking, onClose }) {
               {booking.customerEmail ? (
                 <Row label="Email" value={booking.customerEmail} />
               ) : null}
+              {booking.blockNo ? <Row label="Block no" value={booking.blockNo} /> : null}
+              {booking.notes ? <Row label="Notes" value={booking.notes} /> : null}
               <Row label="Seats" value={seatsText} />
               <Row
                 label="Guest"
@@ -500,6 +516,15 @@ export default function TicketView({ booking, onClose }) {
                 label="Owner"
                 value={`${ownerCount} × ${formatCurrency(booking.ownerPrice ?? 50)}`}
               />
+              <Row
+                label="Entry"
+                value={
+                  booking.checkInStatus === 'CHECKED_IN'
+                    ? 'Already allotted'
+                    : 'Valid for entry'
+                }
+              />
+              <Row label="Booking ID" value={booking.bookingNumber} />
 
               <div className="rounded-xl bg-teal px-4 py-3 text-white">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-white/70">Total</p>

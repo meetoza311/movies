@@ -8,7 +8,7 @@ import SeatMap from '../components/seats/SeatMap';
 import TicketView from '../components/bookings/TicketView';
 import { PageHeader, Skeleton, ErrorState } from '../components/common/States';
 import { Button } from '../components/common/Button';
-import { Input, Select } from '../components/common/Input';
+import { Input, Select, TextArea } from '../components/common/Input';
 import { Badge } from '../components/common/Badge';
 import { ConfirmDialog } from '../components/common/Modal';
 import { formatCurrency, formatDate, formatTime } from '../utils/format';
@@ -26,6 +26,8 @@ export default function BookingDetails() {
   const [customerName, setCustomerName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [blockNo, setBlockNo] = useState('');
+  const [notes, setNotes] = useState('');
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [seatCategory, setSeatCategory] = useState('GUEST');
   const [showTicket, setShowTicket] = useState(false);
@@ -51,6 +53,8 @@ export default function BookingDetails() {
       setCustomerName(booking.customerName);
       setMobileNumber(booking.mobileNumber);
       setCustomerEmail(booking.customerEmail || '');
+      setBlockNo(booking.blockNo || '');
+      setNotes(booking.notes || '');
       setSelectedSeats(
         (booking.seats || []).map((s) => ({
           seatNumber: String(s.seatNumber).toUpperCase().trim(),
@@ -198,6 +202,8 @@ export default function BookingDetails() {
               <Row label="Customer" value={booking.customerName} />
               <Row label="Mobile" value={booking.mobileNumber} />
               <Row label="Email" value={booking.customerEmail || '—'} />
+              <Row label="Block no" value={booking.blockNo || '—'} />
+              <Row label="Notes" value={booking.notes || '—'} />
               <Row
                 label="Seats"
                 value={(booking.seats || []).map(seatLabel).join(', ')}
@@ -254,6 +260,22 @@ export default function BookingDetails() {
                     required
                   />
                 </div>
+                <Input
+                  label="Block no"
+                  value={blockNo}
+                  onChange={(e) => setBlockNo(e.target.value)}
+                  placeholder="e.g. A-102 / Tower 3"
+                />
+                <div className="sm:col-span-2">
+                  <TextArea
+                    label="Notes / comment"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional details for this customer"
+                    rows={3}
+                    maxLength={500}
+                  />
+                </div>
               </div>
               <Select
                 label="Assign seats as"
@@ -292,6 +314,8 @@ export default function BookingDetails() {
                       customerName,
                       mobileNumber,
                       customerEmail,
+                      blockNo,
+                      notes,
                       seats: selectedSeats,
                     });
                   }}
