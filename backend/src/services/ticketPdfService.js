@@ -58,7 +58,7 @@ async function buildTicketPdfBuffer(booking) {
   let qrDataUrl = '';
   if (scanPayload) {
     qrDataUrl = await QRCode.toDataURL(scanPayload, {
-      width: 280,
+      width: 180,
       margin: 1,
       color: { dark: '#1a1040', light: '#ffffff' },
       errorCorrectionLevel: 'M',

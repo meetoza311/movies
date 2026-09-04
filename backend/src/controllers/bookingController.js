@@ -198,6 +198,7 @@ const sendBookingEmailHandler = asyncHandler(async (req, res) => {
     { path: 'showId', select: POPULATE_SHOW },
   ]);
 
+  // Await real SMTP result so the UI can show success/failure (Gmail auth errors, etc.)
   const result = await sendBookingTicketEmail(booking.toObject(), toEmail);
 
   res.json({

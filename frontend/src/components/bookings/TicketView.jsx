@@ -55,9 +55,11 @@ export default function TicketView({ booking, onClose }) {
   const [busy, setBusy] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [emailSent, setEmailSent] = useState(null);
+  const [emailSending, setEmailSending] = useState(false);
 
   useEffect(() => {
     setEmailSent(null);
+    setEmailSending(false);
   }, [booking?._id]);
 
   const movie = booking?.movieId;
@@ -414,18 +416,32 @@ export default function TicketView({ booking, onClose }) {
       toast.error('This booking has no email. Add email when creating/editing the booking.');
       return;
     }
-    await withBusy('email', async () => {
-      const res = await bookingApi.sendEmail(booking._id);
-      setEmailSent(res.data?.summary || {
-        customerName: booking.customerName,
-        customerEmail: to,
-        seats: seatLines,
-        totalLabel: formatCurrency(booking.totalAmount),
-        bookingNumber: booking.bookingNumber,
-        movieTitle,
-      });
-      toast.success(res.message || `Ticket emailed to ${to}`);
-    });
+    if (emailSending) return;
+
+    setEmailSending(true);
+    toast.loading(`Sending ticket to ${to}…`, { id: 'ticket-email' });
+
+    // Non-blocking UI: Share / Close stay usable; only Send email is disabled
+    bookingApi
+      .sendEmail(booking._id)
+      .then((res) => {
+        setEmailSent(
+          res.data?.summary || {
+            customerName: booking.customerName,
+            customerEmail: to,
+            seats: seatLines,
+            totalLabel: formatCurrency(booking.totalAmount),
+            bookingNumber: booking.bookingNumber,
+            movieTitle,
+          }
+        );
+        toast.success(res.message || `Ticket emailed to ${to}`, { id: 'ticket-email' });
+      })
+      .catch((err) => {
+        setEmailSent(null);
+        toast.error(err.message || 'Could not send email', { id: 'ticket-email' });
+      })
+      .finally(() => setEmailSending(false));
   }
 
   return (
@@ -522,7 +538,9 @@ export default function TicketView({ booking, onClose }) {
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 shrink-0 text-success" size={22} />
                 <div className="min-w-0">
-                  <p className="font-bold text-success">Email sent successfully</p>
+                  <p className="font-bold text-success">
+                    {emailSending ? 'Sending email…' : 'Email sent / queued'}
+                  </p>
                   <p className="mt-0.5 break-all text-xs text-muted">
                     To {emailSent.customerEmail}
                   </p>
@@ -557,13 +575,17 @@ export default function TicketView({ booking, onClose }) {
                     {emailSent.totalLabel || formatCurrency(booking.totalAmount)}
                   </strong>
                 </p>
-                <p className="text-xs text-muted">PDF ticket attached in the email.</p>
+                <p className="text-xs text-muted">
+                  {emailSending
+                    ? 'Sending in background — you can share or close this ticket.'
+                    : 'PDF ticket is attached in the email (check inbox / spam).'}
+                </p>
               </div>
               <Button
                 variant="outline"
                 className="w-full"
                 onClick={() => setEmailSent(null)}
-                disabled={Boolean(busy)}
+                disabled={emailSending}
               >
                 Send again
               </Button>
@@ -578,8 +600,8 @@ export default function TicketView({ booking, onClose }) {
               </p>
               <Button
                 className="w-full min-h-12"
-                disabled={Boolean(busy) || !booking.customerEmail}
-                loading={busy === 'email'}
+                disabled={emailSending || !booking.customerEmail}
+                loading={emailSending}
                 onClick={handleSendEmail}
               >
                 <Mail size={16} /> Send email

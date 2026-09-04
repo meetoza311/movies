@@ -10,27 +10,39 @@ const {
 } = require('./ticketPdfService');
 const logger = require('../utils/logger');
 
+let cachedTransport = null;
+
 function assertSmtpConfigured() {
   if (!env.smtp.user || !env.smtp.pass) {
     throw new AppError(
-      'Email is not configured. Set SMTP_USER and SMTP_PASS in server .env',
+      'Email is not configured. Set SMTP_USER and SMTP_PASS on the server (Render env vars).',
       503,
       'EMAIL_NOT_CONFIGURED'
     );
   }
 }
 
-function createTransport() {
+function getTransport() {
   assertSmtpConfigured();
-  return nodemailer.createTransport({
+  if (cachedTransport) return cachedTransport;
+
+  cachedTransport = nodemailer.createTransport({
     host: env.smtp.host,
     port: env.smtp.port,
     secure: env.smtp.secure,
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 50,
     auth: {
       user: env.smtp.user,
       pass: env.smtp.pass,
     },
+    connectionTimeout: 20_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 45_000,
   });
+
+  return cachedTransport;
 }
 
 function buildEmailBodies(booking) {
@@ -114,9 +126,7 @@ function buildEmailBodies(booking) {
 }
 
 /**
- * Send ticket email with PDF attachment.
- * @param {object} booking populated booking
- * @param {string} toEmail
+ * Send ticket email with PDF attachment (may take several seconds on SMTP).
  */
 async function sendBookingTicketEmail(booking, toEmail) {
   const to = String(toEmail || '').trim().toLowerCase();
@@ -124,7 +134,7 @@ async function sendBookingTicketEmail(booking, toEmail) {
     throw new AppError('Valid email address is required', 400, 'VALIDATION_ERROR');
   }
 
-  const transport = createTransport();
+  const transport = getTransport();
   const pdfBuffer = await buildTicketPdfBuffer(booking);
   const bodies = buildEmailBodies({
     ...booking,
@@ -163,7 +173,7 @@ async function sendBookingTicketEmail(booking, toEmail) {
     logger.error('Ticket email failed', { message: err.message, to });
     throw new AppError(
       err.responseCode === 535 || /Invalid login|Username and Password not accepted/i.test(err.message)
-        ? 'Gmail login failed. Check SMTP_USER and App Password in .env'
+        ? 'Gmail login failed. Check SMTP_USER and App Password in Render env vars'
         : `Could not send email: ${err.message}`,
       502,
       'EMAIL_SEND_FAILED'
@@ -171,7 +181,40 @@ async function sendBookingTicketEmail(booking, toEmail) {
   }
 }
 
+/**
+ * Validate + queue send so HTTP can return quickly (avoids Render/proxy timeouts).
+ */
+function queueBookingTicketEmail(booking, toEmail) {
+  const to = String(toEmail || '').trim().toLowerCase();
+  const bodies = buildEmailBodies({
+    ...booking,
+    customerEmail: booking.customerEmail || to,
+  });
+
+  // Fail fast if SMTP env is missing (before responding "queued")
+  assertSmtpConfigured();
+
+  setImmediate(() => {
+    sendBookingTicketEmail(booking, to).catch((err) => {
+      logger.error('Background ticket email failed', {
+        bookingNumber: booking.bookingNumber,
+        to,
+        message: err.message,
+        errorCode: err.errorCode,
+      });
+    });
+  });
+
+  return {
+    to,
+    queued: true,
+    summary: { ...bodies.summary, customerEmail: to },
+  };
+}
+
 module.exports = {
   sendBookingTicketEmail,
+  queueBookingTicketEmail,
+  buildEmailBodies,
   assertSmtpConfigured,
 };
