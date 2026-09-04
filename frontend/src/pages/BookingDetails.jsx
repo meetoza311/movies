@@ -98,6 +98,22 @@ export default function BookingDetails() {
   });
 
   const show = booking?.showId;
+  const movie = booking?.movieId;
+  const movieCompleted = String(
+    (typeof movie === 'object' ? movie?.status : '') || ''
+  ).toLowerCase() === 'completed';
+  const showClosed = ['completed', 'cancelled'].includes(
+    String(show?.status || '').toLowerCase()
+  );
+  const seatsLocked = movieCompleted || showClosed;
+  const seatsLockReason = movieCompleted
+    ? 'Movie is completed — seat changes are not allowed.'
+    : show?.status === 'cancelled'
+      ? 'Show is cancelled — seat changes are not allowed.'
+      : showClosed
+        ? 'Show is completed — seat changes are not allowed.'
+        : '';
+
   const prices = useMemo(() => {
     const guest = Number(
       booking?.guestPrice ?? show?.guestPrice ?? show?.seatPrice ?? booking?.seatPrice ?? 80
@@ -124,9 +140,11 @@ export default function BookingDetails() {
   if (isLoading) return <Skeleton className="h-96" />;
   if (error) return <ErrorState message={error.message} onRetry={refetch} />;
 
-  const movie = booking.movieId;
-
   function toggleSeat(seatNumber) {
+    if (seatsLocked) {
+      toast.error(seatsLockReason);
+      return;
+    }
     const next = String(seatNumber).toUpperCase().trim();
     setSelectedSeats((prev) => {
       const exists = prev.find((s) => s.seatNumber === next);
@@ -281,10 +299,16 @@ export default function BookingDetails() {
                 label="Assign seats as"
                 value={seatCategory}
                 onChange={(e) => setSeatCategory(e.target.value)}
+                disabled={seatsLocked}
               >
                 <option value="GUEST">Guest — {formatCurrency(prices.guestPrice)}</option>
                 <option value="OWNER">Owner — {formatCurrency(prices.ownerPrice)}</option>
               </Select>
+              {seatsLocked ? (
+                <p className="rounded-xl border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+                  {seatsLockReason}
+                </p>
+              ) : null}
               {seatsQuery.isLoading ? (
                 <Skeleton className="h-48" />
               ) : (
@@ -293,7 +317,8 @@ export default function BookingDetails() {
                   selected={selectedSeats}
                   activeCategory={seatCategory}
                   onToggle={toggleSeat}
-                  mode="book"
+                  mode={seatsLocked ? 'view' : 'book'}
+                  readonly={seatsLocked}
                 />
               )}
               <p className="text-sm">
@@ -310,14 +335,17 @@ export default function BookingDetails() {
                       toast.error('Valid customer email is required');
                       return;
                     }
-                    updateMutation.mutate({
+                    const payload = {
                       customerName,
                       mobileNumber,
                       customerEmail,
                       blockNo,
                       notes,
-                      seats: selectedSeats,
-                    });
+                    };
+                    if (!seatsLocked) {
+                      payload.seats = selectedSeats;
+                    }
+                    updateMutation.mutate(payload);
                   }}
                 >
                   Save changes

@@ -6,11 +6,12 @@ import { userApi } from '../services/userApi';
 import { useAuth } from '../context/AuthContext';
 import { PageHeader, EmptyState, ErrorState, Skeleton } from '../components/common/States';
 import { Button } from '../components/common/Button';
-import { Input } from '../components/common/Input';
+import { Input, Select } from '../components/common/Input';
 import { Modal, ConfirmDialog } from '../components/common/Modal';
 import { formatDate } from '../utils/format';
+import { ASSIGNABLE_ROLES, ROLE_LABELS } from '../utils/roles';
 
-const emptyForm = { name: '', email: '', password: '' };
+const emptyForm = { name: '', email: '', password: '', role: 'ADMIN' };
 
 export default function Users() {
   const { admin } = useAuth();
@@ -118,7 +119,12 @@ export default function Users() {
 
   function openEdit(user) {
     setEditing(user);
-    setForm({ name: user.name, email: user.email, password: '' });
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: '',
+      role: user.role || 'ADMIN',
+    });
     setFormOpen(true);
   }
 
@@ -127,7 +133,7 @@ export default function Users() {
     if (editing) {
       updateMutation.mutate({
         id: editing._id,
-        payload: { name: form.name, email: form.email },
+        payload: { name: form.name, email: form.email, role: form.role },
       });
       return;
     }
@@ -135,6 +141,7 @@ export default function Users() {
       name: form.name,
       email: form.email,
       password: form.password,
+      role: form.role,
     });
   }
 
@@ -158,7 +165,7 @@ export default function Users() {
     <div>
       <PageHeader
         title="Users"
-        subtitle="Add admins who can access the full cinema desk"
+        subtitle="Manage Admin, Booking, and Scanner access (super admin is hidden)"
         actions={
           <>
             <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setMyPasswordOpen(true)}>
@@ -214,7 +221,7 @@ export default function Users() {
                     {isMe ? <span className="ml-2 text-xs text-teal">(you)</span> : null}
                   </td>
                   <td className="px-4 py-3">{user.email}</td>
-                  <td className="px-4 py-3">{user.role}</td>
+                  <td className="px-4 py-3">{ROLE_LABELS[user.role] || user.role}</td>
                   <td className="px-4 py-3 text-muted">{formatDate(user.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -263,7 +270,7 @@ export default function Users() {
                   </p>
                   <p className="truncate text-sm text-muted">{user.email}</p>
                   <p className="mt-1 text-xs text-muted">
-                    {user.role} · {formatDate(user.createdAt)}
+                    {ROLE_LABELS[user.role] || user.role} · {formatDate(user.createdAt)}
                   </p>
                 </div>
               </div>
@@ -335,8 +342,21 @@ export default function Users() {
               placeholder="Min 6 characters"
             />
           )}
+          <Select
+            label="Role"
+            value={form.role}
+            onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+            required
+          >
+            {ASSIGNABLE_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </option>
+            ))}
+          </Select>
           <p className="text-xs text-muted">
-            This user can log in and use the full admin UI (movies, shows, bookings).
+            Admin: full access · Booking: shows, bookings & scanner · Scanner: scanner only.
+            Super admin is created from the database / seed script only.
           </p>
         </form>
       </Modal>

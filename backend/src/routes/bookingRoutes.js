@@ -12,25 +12,31 @@ const {
   listShowGateHandler,
   sendBookingEmailHandler,
 } = require('../controllers/bookingController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
+const { ROLES } = require('../constants/roles');
 
 const router = express.Router();
 
 router.use(protect);
 
-router.get('/', listBookings);
+const managersAndBooking = authorize(ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.BOOKING);
+const scanStaff = authorize(ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.BOOKING, ROLES.SCANNER);
+
+router.get('/', managersAndBooking, listBookings);
 
 // Gate / scanner routes (before /:id)
-router.get('/gate/show/:showId', listShowGateHandler);
+router.get('/gate/show/:showId', scanStaff, listShowGateHandler);
 router.post(
   '/gate/lookup',
+  scanStaff,
   [body('code').trim().notEmpty().withMessage('Ticket code is required')],
   validate,
   lookupTicketHandler
 );
 router.post(
   '/gate/check-in',
+  scanStaff,
   [
     body('code').trim().notEmpty().withMessage('Ticket code is required'),
     body('showId').notEmpty().withMessage('showId is required'),
@@ -40,12 +46,13 @@ router.post(
   checkInTicketHandler
 );
 
-router.post('/:id/send-email', sendBookingEmailHandler);
+router.post('/:id/send-email', managersAndBooking, sendBookingEmailHandler);
 
-router.get('/:id', getBooking);
+router.get('/:id', managersAndBooking, getBooking);
 
 router.post(
   '/',
+  managersAndBooking,
   [
     body('showId').notEmpty().withMessage('showId is required'),
     body('customerName').trim().isLength({ min: 2, max: 100 }).withMessage('Valid customer name is required'),
@@ -61,6 +68,7 @@ router.post(
 
 router.put(
   '/:id',
+  managersAndBooking,
   [
     body('customerName').optional().trim().isLength({ min: 2, max: 100 }),
     body('mobileNumber').optional().trim().matches(/^[6-9]\d{9}$/),
@@ -73,7 +81,7 @@ router.put(
   updateBookingHandler
 );
 
-router.patch('/:id/cancel', cancelBookingHandler);
-router.delete('/:id', deleteBookingHandler);
+router.patch('/:id/cancel', managersAndBooking, cancelBookingHandler);
+router.delete('/:id', managersAndBooking, deleteBookingHandler);
 
 module.exports = router;

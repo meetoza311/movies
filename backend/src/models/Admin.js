@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { ALL_ROLES, ROLES } = require('../constants/roles');
 
 const adminSchema = new mongoose.Schema(
   {
@@ -23,8 +24,9 @@ const adminSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['ADMIN'],
-      default: 'ADMIN',
+      enum: ALL_ROLES,
+      default: ROLES.ADMIN,
+      index: true,
     },
   },
   { timestamps: true }
@@ -39,3 +41,5 @@ adminSchema.statics.hashPassword = async function hashPassword(plain) {
 };
 
 module.exports = mongoose.model('Admin', adminSchema);
+module.exports.ROLES = ROLES;
+module.exports.ALL_ROLES = ALL_ROLES;

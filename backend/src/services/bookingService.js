@@ -57,6 +57,25 @@ function resolveShowPrices(show) {
   return { guestPrice, ownerPrice };
 }
 
+function assertCanBookSeats(show, movie) {
+  const showStatus = String(show?.status || '').toLowerCase();
+  if (showStatus === 'cancelled') {
+    throw new AppError('Cannot book seats for a cancelled show', 400, 'SHOW_CANCELLED');
+  }
+  if (showStatus === 'completed') {
+    throw new AppError('Cannot book seats for a completed show', 400, 'SHOW_COMPLETED');
+  }
+
+  const movieStatus = String(movie?.status || '').toLowerCase();
+  if (movieStatus === 'completed') {
+    throw new AppError(
+      'Cannot book seats — this movie is marked completed',
+      400,
+      'MOVIE_COMPLETED'
+    );
+  }
+}
+
 /**
  * Accepts:
  * - ["A1","A2"] → all GUEST (legacy)
@@ -163,9 +182,6 @@ async function createBooking({
     if (!show) {
       throw new AppError('Show not found', 404, 'NOT_FOUND');
     }
-    if (show.status === 'cancelled') {
-      throw new AppError('Cannot book seats for a cancelled show', 400, 'SHOW_CANCELLED');
-    }
 
     const movieQuery = Movie.findById(show.movieId);
     if (session) movieQuery.session(session);
@@ -173,6 +189,8 @@ async function createBooking({
     if (!movie) {
       throw new AppError('Movie not found', 404, 'NOT_FOUND');
     }
+
+    assertCanBookSeats(show, movie);
 
     const prices = resolveShowPrices(show);
     const seatItems = normalizeSeatSelection(seats, prices);
@@ -296,6 +314,11 @@ async function updateBooking(
       if (!show) {
         throw new AppError('Show not found', 404, 'NOT_FOUND');
       }
+
+      const movieQuery = Movie.findById(booking.movieId || show.movieId);
+      if (session) movieQuery.session(session);
+      const movie = await movieQuery;
+      assertCanBookSeats(show, movie);
 
       const prices = resolveShowPrices(show);
       const seatItems = normalizeSeatSelection(seats, prices);

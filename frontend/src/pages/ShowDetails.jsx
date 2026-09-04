@@ -82,6 +82,9 @@ export default function ShowDetails() {
   const done = gateBookings.filter((b) => b.checkInStatus === 'CHECKED_IN');
   const pendingSeats = stats.pendingAllotSeats ?? remaining.reduce((n, b) => n + (b.seats?.length || 0), 0);
   const allottedSeats = stats.allottedSeats ?? done.reduce((n, b) => n + (b.seats?.length || 0), 0);
+  const movieCompleted = String(movie?.status || '').toLowerCase() === 'completed';
+  const showClosed = ['completed', 'cancelled'].includes(String(show.status || '').toLowerCase());
+  const canBookSeats = !movieCompleted && !showClosed;
 
   return (
     <div>
@@ -102,12 +105,22 @@ export default function ShowDetails() {
                 Edit
               </Button>
             </Link>
-            <Link
-              to={`/bookings/new?showId=${show._id}&movieId=${movie?._id || movie}`}
-              className="min-w-0 flex-1 sm:flex-none"
-            >
-              <Button className="w-full">Book seats</Button>
-            </Link>
+            {canBookSeats ? (
+              <Link
+                to={`/bookings/new?showId=${show._id}&movieId=${movie?._id || movie}`}
+                className="min-w-0 flex-1 sm:flex-none"
+              >
+                <Button className="w-full">Book seats</Button>
+              </Link>
+            ) : (
+              <Button className="w-full flex-1 sm:flex-none" disabled>
+                {movieCompleted
+                  ? 'Movie completed'
+                  : show.status === 'cancelled'
+                    ? 'Show cancelled'
+                    : 'Show completed'}
+              </Button>
+            )}
           </>
         }
       />

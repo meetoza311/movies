@@ -1,9 +1,10 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Skeleton } from '../components/common/States';
+import { canAccessPath, roleHomePath } from '../utils/roles';
 
 export function ProtectedRoute() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, admin } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -16,6 +17,10 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (!canAccessPath(admin?.role, location.pathname)) {
+    return <Navigate to={roleHomePath(admin?.role)} replace />;
   }
 
   return <Outlet />;

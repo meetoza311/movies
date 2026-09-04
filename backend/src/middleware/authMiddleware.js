@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const Admin = require('../models/Admin');
 const { AppError, asyncHandler } = require('./errorMiddleware');
+const { normalizeRole } = require('../constants/roles');
 
 const protect = asyncHandler(async (req, res, next) => {
   let token;
@@ -25,4 +26,20 @@ const protect = asyncHandler(async (req, res, next) => {
   next();
 });
 
-module.exports = { protect };
+/**
+ * Require one of the allowed roles. Use after `protect`.
+ */
+function authorize(...roles) {
+  const allowed = roles.map((r) => normalizeRole(r));
+  return (req, _res, next) => {
+    const role = normalizeRole(req.admin?.role);
+    if (!allowed.includes(role)) {
+      return next(
+        new AppError('You do not have permission for this action', 403, 'FORBIDDEN')
+      );
+    }
+    return next();
+  };
+}
+
+module.exports = { protect, authorize };

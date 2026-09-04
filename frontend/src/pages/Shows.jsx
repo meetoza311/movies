@@ -5,12 +5,16 @@ import toast from 'react-hot-toast';
 import { showApi } from '../services/showApi';
 import { movieApi } from '../services/movieApi';
 import ShowCard from '../components/shows/ShowCard';
+import { useAuth } from '../context/AuthContext';
 import { PageHeader, EmptyState, ErrorState, Skeleton } from '../components/common/States';
 import { Button } from '../components/common/Button';
 import { Input, Select } from '../components/common/Input';
 import { ConfirmDialog } from '../components/common/Modal';
+import { canManageCatalog } from '../utils/roles';
 
 export default function Shows() {
+  const { admin } = useAuth();
+  const canManage = canManageCatalog(admin?.role);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [movieId, setMovieId] = useState('');
@@ -62,9 +66,11 @@ export default function Shows() {
         title="Shows"
         subtitle="Timings across your catalogue"
         actions={
-          <Link to="/shows/new">
-            <Button>+ Add Show</Button>
-          </Link>
+          canManage ? (
+            <Link to="/shows/new">
+              <Button>+ Add Show</Button>
+            </Link>
+          ) : null
         }
       />
 
@@ -119,11 +125,17 @@ export default function Shows() {
       {!isLoading && !error && data?.data?.length === 0 && (
         <EmptyState
           title="No shows found"
-          description="Schedule a show for one of your movies."
+          description={
+            canManage
+              ? 'Schedule a show for one of your movies.'
+              : 'No shows available yet.'
+          }
           action={
-            <Link to="/shows/new">
-              <Button>Add Show</Button>
-            </Link>
+            canManage ? (
+              <Link to="/shows/new">
+                <Button>Add Show</Button>
+              </Link>
+            ) : null
           }
         />
       )}
@@ -133,8 +145,8 @@ export default function Shows() {
           <ShowCard
             key={show._id}
             show={show}
-            onEdit={() => navigate(`/shows/${show._id}/edit`)}
-            onDelete={() => setPendingDelete(show)}
+            onEdit={canManage ? () => navigate(`/shows/${show._id}/edit`) : undefined}
+            onDelete={canManage ? () => setPendingDelete(show) : undefined}
           />
         ))}
       </div>

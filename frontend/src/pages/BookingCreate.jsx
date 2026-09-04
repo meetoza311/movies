@@ -62,6 +62,12 @@ export default function BookingCreate() {
     enabled: Boolean(showId),
   });
 
+  const showDetailQuery = useQuery({
+    queryKey: ['show', showId],
+    queryFn: () => showApi.get(showId),
+    enabled: Boolean(showId),
+  });
+
   useEffect(() => {
     if (searchParams.get('showId')) {
       setStep(3);
@@ -70,15 +76,32 @@ export default function BookingCreate() {
     }
   }, [searchParams]);
 
-  const selectedShow = useMemo(
-    () => (showsQuery.data?.data || []).find((s) => s._id === showId),
-    [showsQuery.data, showId]
-  );
+  const selectedShow = useMemo(() => {
+    const fromList = (showsQuery.data?.data || []).find((s) => s._id === showId);
+    return fromList || showDetailQuery.data?.data || null;
+  }, [showsQuery.data, showDetailQuery.data, showId]);
 
-  const selectedMovie = useMemo(
-    () => (moviesQuery.data?.data || []).find((m) => m._id === movieId),
-    [moviesQuery.data, movieId]
-  );
+  const selectedMovie = useMemo(() => {
+    const fromList = (moviesQuery.data?.data || []).find((m) => m._id === movieId);
+    if (fromList) return fromList;
+    const fromShow = selectedShow?.movieId;
+    return typeof fromShow === 'object' ? fromShow : null;
+  }, [moviesQuery.data, movieId, selectedShow]);
+
+  const bookingBlockedReason = useMemo(() => {
+    const movieStatus = String(selectedMovie?.status || '').toLowerCase();
+    const showStatus = String(selectedShow?.status || '').toLowerCase();
+    if (movieStatus === 'completed') {
+      return 'This movie is completed — new seat bookings are not allowed.';
+    }
+    if (showStatus === 'completed') {
+      return 'This show is completed — new seat bookings are not allowed.';
+    }
+    if (showStatus === 'cancelled') {
+      return 'This show is cancelled — new seat bookings are not allowed.';
+    }
+    return '';
+  }, [selectedMovie, selectedShow]);
 
   const showPrices = useMemo(() => {
     const show = selectedShow || seatsQuery.data?.data?.show || {};
@@ -131,6 +154,10 @@ export default function BookingCreate() {
   });
 
   function toggleSeat(seatNumber) {
+    if (bookingBlockedReason) {
+      toast.error(bookingBlockedReason);
+      return;
+    }
     const next = String(seatNumber).toUpperCase().trim();
     setSelectedSeats((prev) => {
       const exists = prev.find((s) => s.seatNumber === next);
@@ -140,6 +167,7 @@ export default function BookingCreate() {
   }
 
   function canNext() {
+    if (bookingBlockedReason && step >= 3) return false;
     if (step === 0) return Boolean(movieId);
     if (step === 1) return Boolean(date);
     if (step === 2) return Boolean(showId);
@@ -155,6 +183,10 @@ export default function BookingCreate() {
   }
 
   function handleNext() {
+    if (bookingBlockedReason && step >= 2) {
+      toast.error(bookingBlockedReason);
+      return;
+    }
     if (!canNext()) {
       toast.error('Please complete this step');
       return;
@@ -275,11 +307,17 @@ export default function BookingCreate() {
 
         {step === 3 && (
           <div>
+            {bookingBlockedReason ? (
+              <div className="mb-3 rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+                {bookingBlockedReason}
+              </div>
+            ) : null}
             <div className="mb-3 grid gap-3 sm:grid-cols-2">
               <Select
                 label="Assign seats as"
                 value={seatCategory}
                 onChange={(e) => setSeatCategory(e.target.value)}
+                disabled={Boolean(bookingBlockedReason)}
               >
                 <option value="GUEST">
                   Guest — {formatCurrency(showPrices.guestPrice)}
@@ -298,10 +336,11 @@ export default function BookingCreate() {
             ) : (
               <SeatMap
                 seats={seatsQuery.data?.data?.seats || []}
-                selected={selectedSeats}
+                selected={bookingBlockedReason ? [] : selectedSeats}
                 activeCategory={seatCategory}
                 onToggle={toggleSeat}
-                mode="book"
+                mode={bookingBlockedReason ? 'view' : 'book'}
+                readonly={Boolean(bookingBlockedReason)}
               />
             )}
             <div className="mt-3 flex items-start justify-between gap-2 rounded-xl bg-paper px-3 py-2.5 text-xs sm:mt-4 sm:px-4 sm:py-3 sm:text-sm">
@@ -437,8 +476,12 @@ export default function BookingCreate() {
               type="button"
               className="flex-1 sm:flex-none"
               loading={mutation.isPending}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || Boolean(bookingBlockedReason)}
               onClick={() => {
+                if (bookingBlockedReason) {
+                  toast.error(bookingBlockedReason);
+                  return;
+                }
                 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
                   toast.error('Email is required to confirm booking');
                   setStep(4);

@@ -7,12 +7,14 @@ const {
   updateTheater,
   deleteTheater,
 } = require('../controllers/theaterController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
+const { ROLES } = require('../constants/roles');
 
 const router = express.Router();
 
 router.use(protect);
+router.use(authorize(ROLES.SUPERADMIN, ROLES.ADMIN));
 
 router.get('/', listTheaters);
 router.get('/:id', getTheater);

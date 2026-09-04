@@ -7,19 +7,29 @@ const {
   updateShow,
   deleteShow,
 } = require('../controllers/showController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
 const { SHOW_STATUSES } = require('../models/Show');
+const { ROLES } = require('../constants/roles');
 
 const router = express.Router();
 
 router.use(protect);
 
-router.get('/', listShows);
-router.get('/:id', getShow);
+router.get(
+  '/',
+  authorize(ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.BOOKING, ROLES.SCANNER),
+  listShows
+);
+router.get(
+  '/:id',
+  authorize(ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.BOOKING, ROLES.SCANNER),
+  getShow
+);
 
 router.post(
   '/',
+  authorize(ROLES.SUPERADMIN, ROLES.ADMIN),
   [
     body('movieId').notEmpty().withMessage('movieId is required'),
     body('showDate').notEmpty().withMessage('showDate is required'),
@@ -37,6 +47,7 @@ router.post(
 
 router.put(
   '/:id',
+  authorize(ROLES.SUPERADMIN, ROLES.ADMIN),
   [
     body('startTime').optional().trim().notEmpty(),
     body('endTime').optional().trim().notEmpty(),
@@ -49,6 +60,6 @@ router.put(
   updateShow
 );
 
-router.delete('/:id', deleteShow);
+router.delete('/:id', authorize(ROLES.SUPERADMIN, ROLES.ADMIN), deleteShow);
 
 module.exports = router;

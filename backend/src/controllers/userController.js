@@ -7,18 +7,29 @@ const {
   MAX_SHOWS,
   MAX_THEATERS,
 } = require('../services/movieCleanupService');
+const {
+  ROLES,
+  ASSIGNABLE_ROLES,
+  isAssignableRole,
+  isSuperAdmin,
+  normalizeRole,
+} = require('../constants/roles');
 const logger = require('../utils/logger');
 
 function getSuperAdminEmail() {
   return String(env.adminEmail || 'admin@example.com').toLowerCase().trim();
 }
 
-function isSuperAdminEmail(email) {
-  return String(email || '').toLowerCase().trim() === getSuperAdminEmail();
+function isProtectedSuperAdminAccount(user) {
+  if (!user) return false;
+  return (
+    isSuperAdmin(user.role) ||
+    String(user.email || '').toLowerCase().trim() === getSuperAdminEmail()
+  );
 }
 
 function assertNotSuperAdmin(user) {
-  if (user && isSuperAdminEmail(user.email)) {
+  if (isProtectedSuperAdminAccount(user)) {
     throw new AppError(
       'Super admin account cannot be managed from Users',
       403,
@@ -27,8 +38,28 @@ function assertNotSuperAdmin(user) {
   }
 }
 
+function parseAssignableRole(value, { required = false } = {}) {
+  if (value === undefined || value === null || value === '') {
+    if (required) {
+      throw new AppError('Role is required', 400, 'VALIDATION_ERROR');
+    }
+    return null;
+  }
+  const role = normalizeRole(value);
+  if (role === ROLES.SUPERADMIN || !isAssignableRole(role)) {
+    throw new AppError(
+      `Role must be one of: ${ASSIGNABLE_ROLES.join(', ')}`,
+      400,
+      'VALIDATION_ERROR'
+    );
+  }
+  return role;
+}
+
 const listUsers = asyncHandler(async (_req, res) => {
+  // Never list SUPERADMIN — including the env superadmin email
   const users = await Admin.find({
+    role: { $ne: ROLES.SUPERADMIN },
     email: { $ne: getSuperAdminEmail() },
   })
     .select('-passwordHash')
@@ -46,6 +77,7 @@ const createUser = asyncHandler(async (req, res) => {
   const name = String(req.body.name || '').trim();
   const email = String(req.body.email || '').toLowerCase().trim();
   const password = String(req.body.password || '');
+  const role = parseAssignableRole(req.body.role, { required: true });
 
   if (!name || name.length < 2) {
     throw new AppError('Name must be at least 2 characters', 400, 'VALIDATION_ERROR');
@@ -53,7 +85,7 @@ const createUser = asyncHandler(async (req, res) => {
   if (!email) {
     throw new AppError('Email is required', 400, 'VALIDATION_ERROR');
   }
-  if (isSuperAdminEmail(email)) {
+  if (email === getSuperAdminEmail()) {
     throw new AppError('This email is reserved for super admin', 403, 'SUPER_ADMIN_PROTECTED');
   }
   if (password.length < 6) {
@@ -70,10 +102,10 @@ const createUser = asyncHandler(async (req, res) => {
     name,
     email,
     passwordHash,
-    role: 'ADMIN',
+    role,
   });
 
-  logger.info('User created', { email: user.email, by: req.admin.email });
+  logger.info('User created', { email: user.email, role: user.role, by: req.admin.email });
 
   res.status(201).json({
     success: true,
@@ -104,7 +136,7 @@ const updateUser = asyncHandler(async (req, res) => {
 
   if (req.body.email !== undefined) {
     const email = String(req.body.email).toLowerCase().trim();
-    if (isSuperAdminEmail(email)) {
+    if (email === getSuperAdminEmail()) {
       throw new AppError('This email is reserved for super admin', 403, 'SUPER_ADMIN_PROTECTED');
     }
     const duplicate = await Admin.findOne({ email, _id: { $ne: user._id } });
@@ -114,8 +146,12 @@ const updateUser = asyncHandler(async (req, res) => {
     user.email = email;
   }
 
+  if (req.body.role !== undefined) {
+    user.role = parseAssignableRole(req.body.role, { required: true });
+  }
+
   await user.save();
-  logger.info('User updated', { email: user.email, by: req.admin.email });
+  logger.info('User updated', { email: user.email, role: user.role, by: req.admin.email });
 
   res.json({
     success: true,
@@ -162,8 +198,11 @@ const deleteUser = asyncHandler(async (req, res) => {
     throw new AppError('You cannot delete your own account', 400, 'CANNOT_DELETE_SELF');
   }
 
-  const total = await Admin.countDocuments();
-  if (total <= 1) {
+  const managersLeft = await Admin.countDocuments({
+    role: { $in: [ROLES.SUPERADMIN, ROLES.ADMIN] },
+    _id: { $ne: user._id },
+  });
+  if (normalizeRole(user.role) === ROLES.ADMIN && managersLeft < 1) {
     throw new AppError('Cannot delete the last admin user', 400, 'LAST_ADMIN');
   }
 

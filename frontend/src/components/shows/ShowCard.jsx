@@ -51,25 +51,29 @@ export default function ShowCard({ show, onEdit, onDelete }) {
       <div className="mt-3 flex items-center gap-2 sm:mt-4">
         <Link to={`/shows/${show._id}`} className="min-w-0 flex-1">
           <Button size="sm" className="w-full">
-            Manage seats
+            {onEdit || onDelete ? 'Manage seats' : 'View show'}
           </Button>
         </Link>
-        <Button
-          size="icon"
-          variant="outline"
-          onClick={() => onEdit?.(show)}
-          aria-label="Edit show"
-        >
-          <Pencil size={15} />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => onDelete?.(show)}
-          aria-label="Delete show"
-        >
-          <Trash2 size={15} />
-        </Button>
+        {onEdit ? (
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => onEdit(show)}
+            aria-label="Edit show"
+          >
+            <Pencil size={15} />
+          </Button>
+        ) : null}
+        {onDelete ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onDelete(show)}
+            aria-label="Delete show"
+          >
+            <Trash2 size={15} />
+          </Button>
+        ) : null}
       </div>
     </article>
   );

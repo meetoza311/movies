@@ -4,16 +4,17 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
+import { roleHomePath } from '../utils/roles';
 
 export default function Login() {
-  const { login, isAuthenticated, loading } = useAuth();
+  const { login, isAuthenticated, loading, admin } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!loading && isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={roleHomePath(admin?.role)} replace />;
   }
 
   async function handleSubmit(e) {
@@ -21,9 +22,9 @@ export default function Login() {
     setSubmitting(true);
     const toastId = toast.loading('Connecting to server…');
     try {
-      await login(email, password);
+      const data = await login(email, password);
       toast.success('Welcome to Savan Sentosa', { id: toastId });
-      navigate('/');
+      navigate(roleHomePath(data.admin?.role));
     } catch (err) {
       toast.error(err.message || 'Login failed', { id: toastId });
     } finally {
